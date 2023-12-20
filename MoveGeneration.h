@@ -180,6 +180,7 @@ U64 bishop_magic_nums[64] = {
 
 //
 U64 mask_pawn_attacks(int square, int side);
+U64 mask_pawn_pushes(int side, U64 empty);
 U64 mask_knight_attacks(int square);
 U64 mask_king_attacks(int square);
 U64 mask_rook_attacks(int square);

@@ -27,30 +27,30 @@ enum {
 extern const char *square_to_cord[64];
 
 //Files
-const U64 A = 0x0101010101010101;
-const U64 B = 0x0202020202020202;
-const U64 C = 0x0404040404040404;
-const U64 D = 0x0808080808080808;
-const U64 E = 0x1010101010101010;
-const U64 F = 0x2020202020202020;
-const U64 G = 0x4040404040404040;
-const U64 H = 0x8080808080808080;
+const U64 file_A = 0x0101010101010101;
+const U64 file_B = 0x0202020202020202;
+const U64 file_C = 0x0404040404040404;
+const U64 file_D = 0x0808080808080808;
+const U64 file_E = 0x1010101010101010;
+const U64 file_F = 0x2020202020202020;
+const U64 file_G = 0x4040404040404040;
+const U64 file_H = 0x8080808080808080;
 
-const U64 not_A_file = ~A;
-const U64 not_H_file = ~H;
-const U64 not_AB_file = ~(A | B);
-const U64 not_GH_file = ~(G | H);
+const U64 not_A_file = ~file_A;
+const U64 not_H_file = ~file_H;
+const U64 not_AB_file = ~(file_A | file_B);
+const U64 not_GH_file = ~(file_G | file_H);
 
 
 //Ranks
-const U64 R1 = 0xff00000000000000;
-const U64 R2 = 0x00ff000000000000;
-const U64 R3 = 0x0000ff0000000000;
-const U64 R4 = 0x000000ff00000000;
-const U64 R5 = 0x00000000ff000000;
-const U64 R6 = 0x0000000000ff0000;
-const U64 R7 = 0x000000000000ff00;
-const U64 R8 = 0x00000000000000ff;
+const U64 rank_1 = 0xff00000000000000;
+const U64 rank_2 = 0x00ff000000000000;
+const U64 rank_3 = 0x0000ff0000000000;
+const U64 rank_4 = 0x000000ff00000000;
+const U64 rank_5 = 0x00000000ff000000;
+const U64 rank_6 = 0x0000000000ff0000;
+const U64 rank_7 = 0x000000000000ff00;
+const U64 rank_8 = 0x00000000000000ff;
 
 
 // get/set/pop bit macros

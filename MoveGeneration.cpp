@@ -46,6 +46,35 @@ U64 mask_pawn_attacks(int side, int square) {
     return attacks;
 }
 
+
+/// get single pawn push targets
+/// \param side 0 for black, 1 for white
+/// \param pawns bitboard of pawn locations
+/// \param empty bitboard of empty squares
+/// \return bitboard of possible pawn pushes
+U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty) {
+    return side ? (south_one(pawns) & empty) : (north_one(pawns) & empty);
+}
+
+/// get double pawn push targets
+/// \param side 0 for black, 1 for white
+/// \param pawns bitboard of pawn locations
+/// \param empty bitboard of empty squares
+/// \return U64 bitboard of possible pawn pushes
+U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
+    // get single pushes
+    U64 single_pushes = mask_single_pawn_pushes(side, pawns, empty);
+    if (!side) {
+        // push single pushes forward one more, only if target square is empty and on the 4th rank
+        return north_one(single_pushes) & empty & rank_4;
+    }
+    else {
+        // push single pushes forward one more, only if target square is empty and on the 5th rank
+        return south_one(single_pushes) & empty & rank_5;
+    }
+}
+
+
 // bit shifts to get knight attacks
 U64 mask_knight_attacks(int square) {
     U64 attacks = 0ULL;
@@ -290,17 +319,17 @@ static inline U64 get_rook_attacks(int square, U64 occupancy) {
     return rook_attacks[square][occupancy]; // access pre-calculated table
 }
 
-
-int main() {
-    generate_attack_tables_non_sliding();
-    generate_attack_tables_sliding(1);
-    generate_attack_tables_sliding(0);
-
-    U64 occupancy = 0ULL;
-    set_bit(occupancy, b6);
-    set_bit(occupancy, f2);
-    set_bit(occupancy, b2);
-
-    print_bitboard(get_bishop_attacks(d4, occupancy));
-    return 0;
-}
+//
+//int main() {
+//    generate_attack_tables_non_sliding();
+//    generate_attack_tables_sliding(1);
+//    generate_attack_tables_sliding(0);
+//
+//    U64 occupancy = 0ULL;
+//    set_bit(occupancy, b6);
+//    set_bit(occupancy, f2);
+//    set_bit(occupancy, b2);
+//
+//    print_bitboard(get_bishop_attacks(d4, occupancy));
+//    return 0;
+//}
