@@ -7,4 +7,4 @@ include_directories(.)
 
 add_executable(bitboards
         utils.cpp
-        utils.h Board.h Board.cpp)
+        utils.cpp Board.cpp)

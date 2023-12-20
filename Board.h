@@ -24,6 +24,9 @@ class Board {
     //    U64 generate_pseudo_legal_moves(U64 white_pawns, )
 public:
     void set_starting_position();
+    U64 get_white_occupancy();
+    U64 get_black_occupancy();
+    U64 get_total_occupancy();
 };
 
 

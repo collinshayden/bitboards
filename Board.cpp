@@ -35,10 +35,26 @@ void Board::set_starting_position() {
     set_bit(black_kings, e8);
 }
 
+// get all squares occupied by a white piece
+U64 Board::get_white_occupancy() {
+    return white_pawns | white_knights | white_bishops | white_rooks | white_queens | white_kings;
+}
+
+// get all squares occupied by a black piece
+U64 Board::get_black_occupancy() {
+    return black_pawns | black_knights | black_bishops | black_rooks | black_queens | black_kings;
+}
+
+// get all occupied squares
+U64 Board::get_total_occupancy() {
+    return get_white_occupancy() | get_black_occupancy();
+}
+
 int main() {
     Board board;
     board.set_starting_position();
 
-
+    U64 bitboard = board.get_total_occupancy();
+    print_bitboard(bitboard);
     return 0;
 }
