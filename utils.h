@@ -53,10 +53,10 @@ const U64 rank_7 = 0x000000000000ff00;
 const U64 rank_8 = 0x00000000000000ff;
 
 
-// get/set/pop bit macros
-#define get_bit(bitboard, square) (bitboard & (1ULL << square))
-#define set_bit(bitboard, square) (bitboard |= (1ULL << square))
-#define pop_bit(bitboard, square) (get_bit(bitboard, square) ? bitboard ^= (1ULL << square) : 0)
+// set/get/pop bit macros
+#define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
+#define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
+#define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 
 
 void print_bitboard(U64 bitboard);
