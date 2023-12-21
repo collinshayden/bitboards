@@ -67,8 +67,7 @@ U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
     if (!side) {
         // push single pushes forward one more, only if target square is empty and on the 4th rank
         return north_one(single_pushes) & empty & rank_4;
-    }
-    else {
+    } else {
         // push single pushes forward one more, only if target square is empty and on the 5th rank
         return south_one(single_pushes) & empty & rank_5;
     }
@@ -319,17 +318,63 @@ static inline U64 get_rook_attacks(int square, U64 occupancy) {
     return rook_attacks[square][occupancy]; // access pre-calculated table
 }
 
-//
-//int main() {
-//    generate_attack_tables_non_sliding();
-//    generate_attack_tables_sliding(1);
-//    generate_attack_tables_sliding(0);
-//
-//    U64 occupancy = 0ULL;
-//    set_bit(occupancy, b6);
-//    set_bit(occupancy, f2);
-//    set_bit(occupancy, b2);
-//
-//    print_bitboard(get_bishop_attacks(d4, occupancy));
-//    return 0;
-//}
+static inline U64 get_queen_attacks(int square, U64 occupancy) {
+    return get_rook_attacks(square, occupancy) | get_bishop_attacks(square, occupancy);
+}
+
+/// function to determine if a given square is attacked by the given side
+/// the general idea of this function is to assume one of each piece type is actually currently on the square
+/// and then check the attacked squares for enemy pieces
+/// basically using rays going outwards from target square
+/// \param piece_bitboards bitboards for all the pieces (white and black)
+/// \param occupancy bitboard of occupied squares
+/// \param square square to check if it is attacked
+/// \param by_side (0 for white, 1 for black) side to check if they attack that square
+/// \return bool if square is attacked by given side
+// source https://www.chessprogramming.org/Square_Attacked_By
+static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side) {
+    // the pieces enum is laid out as white_pawn, black_pawn, white_knight, black_knight, etc
+    // indexing the bitboard by white_pawn + by_side will index white pieces if by_side is 0, and black pieces if by_side is 1
+    U64 pawns = piece_bitboards[white_pawn + by_side];
+    // we index the pawn_attacks table for the opposite color from the square (by_side^1 will flip the bit)
+    // then we check if there are pawns on those squares (of the by_side color)
+    if (pawn_attacks[by_side ^ 1][square] & pawns) return true; // return early to save some computation
+
+    // knights
+    U64 knights = piece_bitboards[white_knight + by_side]; // get white knights (for example)
+    if (knight_attacks[square] & knights)
+        return true; // get attacks from target square, see if there are any white knights there
+
+    // kings
+    U64 kings = piece_bitboards[white_king + by_side];
+    if (king_attacks[square] & kings) return true;
+
+    // bishops & queens
+    U64 bishopsQueens = piece_bitboards[white_queen + by_side] | piece_bitboards[white_bishop + by_side];
+    // send diagonal ray outwards from squares then & with bitboard containing bishops and queens
+    if (get_bishop_attacks(square, occupancy) & bishopsQueens) return true;
+
+    // rooks & queens
+    U64 rooksQueens = piece_bitboards[white_queen + by_side] | piece_bitboards[white_rook + by_side];
+    // send orthogonal ray outwards from squares then & with bitboard containing rooks and queens
+    if (get_rook_attacks(square, occupancy) & rooksQueens) return true;
+
+    return false;
+}
+
+int main() {
+    generate_attack_tables_sliding(1);
+    generate_attack_tables_sliding(0);
+    generate_attack_tables_non_sliding();
+
+
+    U64 occupied = 0ULL;
+    U64 piece_bitboards[12] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL,};
+    int side = 0; // white
+    piece_bitboards[white_bishop + side] = 0x000100000000000;
+    print_bitboard(piece_bitboards[white_bishop+side]);
+
+    printf("%d\n", attacked(piece_bitboards, occupied, f2, white));
+
+    return 0;
+}
