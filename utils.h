@@ -10,7 +10,31 @@
 #define U64 unsigned long long
 
 // colors
-enum {white, black};
+enum {white, black, all};
+
+// pieces, alternating, so we can do white_pawn + side_to_move to index black pieces
+enum {
+    white_pawn,
+    black_pawn,
+    white_knight,
+    black_knight,
+    white_bishop,
+    black_bishop,
+    white_rook,
+    black_rook,
+    white_queen,
+    black_queen,
+    white_king,
+    black_king,
+};
+
+// castling rights
+enum {
+    wk = 1, // 0001 in binary
+    wq = 2, // 0010
+    bk = 4, // 0100
+    bq = 8, // 1000
+};
 
 // board squares
 enum {
@@ -21,10 +45,13 @@ enum {
     a4, b4, c4, d4, e4, f4, g4, h4,
     a3, b3, c3, d3, e3, f3, g3, h3,
     a2, b2, c2, d2, e2, f2, g2, h2,
-    a1, b1, c1, d1, e1, f1, g1, h1
+    a1, b1, c1, d1, e1, f1, g1, h1, no_sq
 };
 
 extern const char *square_to_cord[64];
+
+extern const char *unicode_pieces[12];
+
 
 //Files
 const U64 file_A = 0x0101010101010101;
