@@ -24,11 +24,15 @@ void Board::print_board() {
         printf("\n");
     }
     printf("\n    a b c d e f g h\n");
+    printf("\n    Side: %s", (side ? "white" : "black"));
+    printf("\n    Enpass: %s", (enpassant != no_sq) ? square_to_cord[enpassant] : "no");
+    printf("\n    Castling: %c%c%c%c\n\n", ((castle * wk) ? 'K' : '-'), ((castle * wq) ? 'Q' : '-'), ((castle * bk) ? 'k' : '-'), ((castle * bq) ? 'q' : '-'));
 }
 
 int main() {
-    Board board;
-    board.print_board();
+//    Board board;
+//    board.print_board();
+
 
 
     return 0;
