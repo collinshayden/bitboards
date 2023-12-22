@@ -10,7 +10,9 @@
 #define U64 unsigned long long
 
 // colors
-enum {white, black, all};
+enum {
+    white, black, all
+};
 
 // pieces, alternating, so we can do white_pawn + side_to_move to index black pieces
 enum {
@@ -85,9 +87,59 @@ const U64 rank_8 = 0x00000000000000ff;
 #define get_bit(bitboard, square) ((bitboard) & (1ULL << (square)))
 #define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 
+// move encoding/decoding
+// source https://www.youtube.com/watch?v=gyf3mr1LI7A&list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs&index=28
+/*
+          binary move bits                               hexidecimal constants
+
+    0000 0000 0000 0000 0011 1111    source square       0x3f
+    0000 0000 0000 1111 1100 0000    target square       0xfc0
+    0000 0000 1111 0000 0000 0000    piece               0xf000
+    0000 1111 0000 0000 0000 0000    promoted piece      0xf0000
+    0001 0000 0000 0000 0000 0000    capture flag        0x100000
+    0010 0000 0000 0000 0000 0000    double push flag    0x200000
+    0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
+    1000 0000 0000 0000 0000 0000    castling flag       0x800000
+*/
+
+// encode move
+#define encode_move(source, target, piece, promoted, capture, double_push, enpassant, castling) \
+ ((source) |             \
+ (target << 6) |         \
+ (piece << 12) |         \
+ (promoted << 16) |      \
+ (capture << 20) |       \
+ (double_push << 21) |   \
+ (enpassant << 22) |     \
+ (castling << 23))     \
+
+// extract source square
+#define get_move_source(move) (move & 0x3f)
+
+// extract target square
+#define get_move_target(move) ((move & 0xfc0) >> 6)
+
+// extract piece
+#define get_move_piece(move) ((move & 0xf000) >> 12)
+
+// extract promoted piece
+#define get_move_promoted(move) ((move & 0xf0000) >> 16)
+
+// extract capture
+#define get_move_capture(move) ((move & 0x100000) >> 20)
+
+// extract double_push
+#define get_move_double_push(move) ((move & 0x200000) >> 21)
+
+// extract enpassant
+#define get_move_enpassant(move) ((move & 0x400000) >> 22)
+
+// extract castling
+#define get_move_castling(move) ((move & 0x800000) >> 23)
+
+
 
 void print_bitboard(U64 bitboard);
-U64 north_one(U64 bitboard);
-U64 south_one(U64 bitboard);
+
 
 #endif //BITBOARDS_UTILS_H

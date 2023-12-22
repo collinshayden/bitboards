@@ -35,11 +35,5 @@ void print_bitboard(U64 bitboard) {
     printf("\n     a b c d e f g h\n");
 }
 
-U64 north_one(U64 bitboard) {
-    return bitboard >> 8;
-}
 
-U64 south_one(U64 bitboard) {
-    return bitboard << 8;
-}
 

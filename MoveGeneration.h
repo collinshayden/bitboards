@@ -6,6 +6,7 @@
 #define BITBOARDS_MOVEGENERATION_H
 
 #include "utils.h"
+#include "vector"
 
 // attacks masks
 U64 bishop_masks[64];
@@ -19,6 +20,7 @@ U64 king_attacks[64]; // [square]
 U64 bishop_attacks[64][512]; // [square][occupancies]
 U64 rook_attacks[64][4096]; // [square][occupancies]
 
+// how many bits a rook attacks from each square, not including edge squares
 int rook_relevant_bits[64] = {
         12, 11, 11, 11, 11, 11, 11, 12,
         11, 10, 10, 10, 10, 10, 10, 11,
@@ -30,6 +32,7 @@ int rook_relevant_bits[64] = {
         12, 11, 11, 11, 11, 11, 11, 12
 };
 
+// how many bits a bishop attacks from each square, not including edge squares
 int bishop_relevant_bits[64] = {
         6, 5, 5, 5, 5, 5, 5, 6,
         5, 5, 5, 5, 5, 5, 5, 5,
@@ -178,7 +181,10 @@ U64 bishop_magic_nums[64] = {
         0x4010011029020020ULL
 };
 
-//
+static inline int count_bits(U64 bitboard);
+static inline int get_ls1b_index(U64 bitboard);
+static inline U64 north_one(U64 bitboard);
+static inline U64 south_one(U64 bitboard);
 U64 mask_pawn_attacks(int square, int side);
 U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty);
 U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty);
@@ -191,4 +197,8 @@ U64 generate_bishop_attacks(int square, U64 block);
 U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask);
 void generate_attack_tables_non_sliding();
 void generate_attack_tables_sliding(int bishop);
+static inline U64 get_bishop_attacks(int square, U64 occupancy);
+static inline U64 get_rook_attacks(int square, U64 occupancy);
+static inline U64 get_queen_attacks(int square, U64 occupancy);
+static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side);
 #endif //BITBOARDS_MOVEGENERATION_H

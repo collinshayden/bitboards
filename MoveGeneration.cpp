@@ -25,6 +25,20 @@ static inline int get_ls1b_index(U64 bitboard) {
     }
 }
 
+/// shifts all bits in a bitboard up one rank
+/// \param bitboard U64
+/// \return U64
+static inline U64 north_one(U64 bitboard) {
+    return bitboard >> 8;
+}
+
+/// shifts all bits in a bitboard down one rank
+/// \param bitboard U64
+/// \return U64
+static inline U64 south_one(U64 bitboard) {
+    return bitboard << 8;
+}
+
 // get pawn attack mask
 U64 mask_pawn_attacks(int side, int square) {
     U64 attacks = 0ULL;
@@ -297,8 +311,10 @@ void generate_attack_tables_sliding(int bishop) {
         }
     }
 }
-
-// get bishop attacks using magic number for table lookup
+/// get bishop attacks using magic number for table lookup
+/// \param square int
+/// \param occupancy U64 bitboard of occupied squares
+/// \return U64 bitboard// get bishop attacks using magic number for table lookup
 static inline U64 get_bishop_attacks(int square, U64 occupancy) {
     // get bishop attacks using current board occupancy
     occupancy &= bishop_masks[square]; // just the relevant blockers
@@ -308,7 +324,10 @@ static inline U64 get_bishop_attacks(int square, U64 occupancy) {
     return bishop_attacks[square][occupancy]; // access pre-calculated table
 }
 
-// get rook attacks using magic number for table lookup
+/// get rook attacks using magic number for table lookup
+/// \param square int
+/// \param occupancy U64 bitboard of occupied squares
+/// \return U64 bitboard
 static inline U64 get_rook_attacks(int square, U64 occupancy) {
     // get rook attacks using current board occupancy
     occupancy &= rook_masks[square]; // just the relevant blockers
@@ -318,6 +337,10 @@ static inline U64 get_rook_attacks(int square, U64 occupancy) {
     return rook_attacks[square][occupancy]; // access pre-calculated table
 }
 
+/// combining results of rook & bishop attack getters
+/// \param square int
+/// \param occupancy U64 bitboard of occupied squares
+/// \return U64 bitboard
 static inline U64 get_queen_attacks(int square, U64 occupancy) {
     return get_rook_attacks(square, occupancy) | get_bishop_attacks(square, occupancy);
 }
@@ -345,7 +368,7 @@ static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int sq
     if (knight_attacks[square] & knights)
         return true; // get attacks from target square, see if there are any white knights there
 
-    // kings
+    // kings (basically same as knights)
     U64 kings = piece_bitboards[white_king + by_side];
     if (king_attacks[square] & kings) return true;
 
@@ -362,19 +385,50 @@ static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int sq
     return false;
 }
 
+
+
+std::vector<std::pair<int, int>> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side) {
+    // vector of move pairs (start_pos, end_pos)
+    std::vector<std::pair<int, int>> moves = {};
+
+    U64 empty = ~occupancy_bitboards[all];
+    U64 single_pawn_pushes = mask_single_pawn_pushes(side, piece_bitboards[white_pawn + side], empty);
+    print_bitboard(single_pawn_pushes);
+
+
+}
+
 int main() {
     generate_attack_tables_sliding(1);
     generate_attack_tables_sliding(0);
     generate_attack_tables_non_sliding();
+//    U64 occupancy_bitboards[3] = {0xffff000000000000, 0x000000000000ffff, 0xffff00000000ffff,};
+//    U64 occupied = 0ULL;
+//    U64 piece_bitboards[12] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL,};
+//    int side = 0; // white
+//    piece_bitboards[white_pawn + side] = 0x000100000000000;
+//    print_bitboard(piece_bitboards[white_pawn + side]);
+//
+//    pseudo_legal_moves(occupancy_bitboards,piece_bitboards, side);
 
 
-    U64 occupied = 0ULL;
-    U64 piece_bitboards[12] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL,};
-    int side = 0; // white
-    piece_bitboards[white_bishop + side] = 0x000100000000000;
-    print_bitboard(piece_bitboards[white_bishop+side]);
+    // create move
+    int move = encode_move(d7, e8, white_pawn, white_queen, 0, 0, 0, 0);
 
-    printf("%d\n", attacked(piece_bitboards, occupied, f2, white));
+    // exract move items
+    int source_square = get_move_source(move);
+    int target_square = get_move_target(move);
+    int piece = get_move_piece(move);
+    int promoted_piece = get_move_promoted(move);
 
+    // print move items
+    printf("source square: %s\n", square_to_cord[source_square]);
+    printf("target square: %s\n", square_to_cord[target_square]);
+    printf("piece: %s\n", unicode_pieces[piece]);
+    printf("piece: %s\n", unicode_pieces[promoted_piece]);
+    printf("capture flag: %d\n", get_move_capture(move) ? 1 : 0);
+    printf("double pawn push flag: %d\n", get_move_double_push(move) ? 1 : 0);
+    printf("enpassant flag: %d\n", get_move_enpassant(move) ? 1 : 0);
+    printf("castling flag: %d\n", get_move_castling(move) ? 1 : 0);
     return 0;
 }
