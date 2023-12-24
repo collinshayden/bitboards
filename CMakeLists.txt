@@ -10,3 +10,10 @@ add_executable(bitboards
         Board.cpp Board.h
         MoveGeneration.cpp MoveGeneration.h
         main.cpp)
+
+#add_executable(bitboards
+#        utils.h
+#        utils.cpp
+#        Board.cpp Board.h
+#        MoveGeneration.cpp MoveGeneration.h
+#        Tests.h Tests.cpp)
