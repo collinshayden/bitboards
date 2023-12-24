@@ -14,7 +14,7 @@ void Board::print_board() {
             if (!file) {
                 printf(" %d  ", 8 - rank);
             }
-            for (int bb_piece = white_pawn; bb_piece <= black_king; bb_piece++) {
+            for (int bb_piece = pawn; bb_piece <= king + 1; bb_piece++) {
                 if(get_bit(Board::piece_bitboards[bb_piece], square)) {
                     piece = bb_piece;
                 }

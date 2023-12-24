@@ -187,7 +187,7 @@ static inline U64 north_one(U64 bitboard);
 static inline U64 south_one(U64 bitboard);
 static U64 mask_pawn_attacks(int square, int side);
 static U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty);
-static U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty);
+static U64 mask_double_pawn_pushes(int side, U64 single_pawn_pushes, U64 empty);
 static U64 mask_knight_attacks(int square);
 static U64 mask_king_attacks(int square);
 static U64 mask_rook_attacks(int square);

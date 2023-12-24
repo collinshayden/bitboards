@@ -72,15 +72,15 @@ static U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty) {
 
 /// get double pawn push targets
 /// \param side 0 for black, 1 for white
-/// \param pawns bitboard of pawn locations
+/// \param single_pushes bitboard of available single pawn pushes
 /// \param empty bitboard of empty squares
 /// \return U64 bitboard of possible pawn pushes
-static U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
-    // get single pushes
-    U64 single_pushes = mask_single_pawn_pushes(side, pawns, empty);
+static U64 mask_double_pawn_pushes(int side, U64 single_pushes, U64 empty) {
+    // white
     if (!side) {
         // push single pushes forward one more, only if target square is empty and on the 4th rank
         return north_one(single_pushes) & empty & rank_4;
+        // black
     } else {
         // push single pushes forward one more, only if target square is empty and on the 5th rank
         return south_one(single_pushes) & empty & rank_5;
@@ -363,29 +363,29 @@ static inline U64 get_queen_attacks(int square, U64 occupancy) {
 /// \return bool if square is attacked by given side
 // source https://www.chessprogramming.org/Square_Attacked_By
 static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side) {
-    // the pieces enum is laid out as white_pawn, black_pawn, white_knight, black_knight, etc
-    // indexing the bitboard by white_pawn + by_side will index white pieces if by_side is 0, and black pieces if by_side is 1
-    U64 pawns = piece_bitboards[white_pawn + by_side];
+    // the pieces enum is laid out as pawn, black_pawn, knight, black_knight, etc
+    // indexing the bitboard by pawn + by_side will index white pieces if by_side is 0, and black pieces if by_side is 1
+    U64 pawns = piece_bitboards[pawn + by_side];
     // we index the pawn_attacks table for the opposite color from the square (by_side^1 will flip the bit)
     // then we check if there are pawns on those squares (of the by_side color)
     if (pawn_attacks[by_side ^ 1][square] & pawns) return true; // return early to save some computation
 
     // knights
-    U64 knights = piece_bitboards[white_knight + by_side]; // get white knights (for example)
+    U64 knights = piece_bitboards[knight + by_side]; // get white knights (for example)
     if (knight_attacks[square] & knights)
         return true; // get attacks from target square, see if there are any white knights there
 
     // kings (basically same as knights)
-    U64 kings = piece_bitboards[white_king + by_side];
+    U64 kings = piece_bitboards[king + by_side];
     if (king_attacks[square] & kings) return true;
 
     // bishops & queens
-    U64 bishopsQueens = piece_bitboards[white_queen + by_side] | piece_bitboards[white_bishop + by_side];
+    U64 bishopsQueens = piece_bitboards[queen + by_side] | piece_bitboards[bishop + by_side];
     // send diagonal ray outwards from squares then & with bitboard containing bishops and queens
     if (get_bishop_attacks(square, occupancy) & bishopsQueens) return true;
 
     // rooks & queens
-    U64 rooksQueens = piece_bitboards[white_queen + by_side] | piece_bitboards[white_rook + by_side];
+    U64 rooksQueens = piece_bitboards[queen + by_side] | piece_bitboards[rook + by_side];
     // send orthogonal ray outwards from squares then & with bitboard containing rooks and queens
     if (get_rook_attacks(square, occupancy) & rooksQueens) return true;
 
@@ -396,10 +396,176 @@ static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int sq
 std::vector<int> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side) {
     // vector of move pairs (start_pos, end_pos)
     std::vector<int> moves = {};
-
+    int move, source_square, target_square, capture, piece;
     U64 empty = ~occupancy_bitboards[all];
-    U64 single_pawn_pushes = mask_single_pawn_pushes(side, piece_bitboards[white_pawn + side], empty);
-    print_bitboard(single_pawn_pushes);
+
+    // NON-SLIDING PIECES (pawn, knight, king)
+    // pawn pushes
+    U64 single_pawn_pushes = mask_single_pawn_pushes(side, piece_bitboards[pawn + side], empty);
+    U64 double_pawn_pushes = mask_double_pawn_pushes(side, single_pawn_pushes, empty);
+
+    // single
+    while(single_pawn_pushes) {
+        // get source square, target square, and pop
+        source_square = get_ls1b_index(single_pawn_pushes);
+        target_square = side ? source_square - 8 : source_square + 8;
+        pop_bit(single_pawn_pushes, source_square);
+
+        // save move
+        move = encode_move(target_square, source_square, side, 0, 0, 0, 0, 0);
+        moves.push_back(move);
+    }
+
+    // double
+    while (double_pawn_pushes) {
+        // get source square, target square, and pop
+        source_square = get_ls1b_index(double_pawn_pushes);
+        target_square = side ? source_square - 16 : source_square + 16;
+        pop_bit(double_pawn_pushes, source_square);
+
+        // save move
+        move = encode_move(target_square, source_square, side, 0, 0, 1, 0, 0);
+        moves.push_back(move);
+    }
+
+    // pawn captures
+    U64 pawns = piece_bitboards[pawn + side];
+    while (pawns) {
+        // get source square then pop
+        source_square = get_ls1b_index(pawns);
+        pop_bit(pawns, source_square);
+
+        // use attack table lookup, & with friendly pieces to disallow self-capture
+        U64 attacks = pawn_attacks[side][source_square];// & ~occupancy_bitboards[side];
+
+
+        // loop through attacked squares
+        while (attacks) {
+            // get target square
+            target_square = get_ls1b_index(attacks);
+            pop_bit(attacks, target_square);
+
+            // get capture
+            capture = get_bit(occupancy_bitboards[!side], target_square) ? 1 : 0;
+            if (capture) {
+                // save move
+                move = encode_move(source_square, target_square, side, 0, capture, 0, 0, 0);
+                moves.push_back(move);
+            }
+        }
+    }
+
+    // knights
+    U64 knights = piece_bitboards[knight + side];
+    // loop through each knight on the board
+    while (knights) {
+        // get source square then pop
+        source_square = get_ls1b_index(knights);
+        pop_bit(knights, source_square);
+
+        // use attack table lookup, & with friendly pieces to disallow self-capture
+        U64 attacks = knight_attacks[source_square] & ~occupancy_bitboards[side];
+
+        // loop through attacked squares
+        while (attacks) {
+            // get target square
+            target_square = get_ls1b_index(attacks);
+            pop_bit(attacks, target_square);
+
+            // get capture
+            capture = get_bit(occupancy_bitboards[!side], target_square) ? 1 : 0;
+
+            // save move
+            move = encode_move(source_square, target_square, (knight + side), 0, capture, 0, 0, 0);
+            moves.push_back(move);
+        }
+    }
+
+    // kings
+    U64 kings = piece_bitboards[king + side];
+    // loop through each king on the board
+    while (kings) {
+        // get source square then pop
+        source_square = get_ls1b_index(kings);
+        pop_bit(kings, source_square);
+
+        // use attack table lookup, & with friendly pieces to disallow self-capture
+        U64 attacks = king_attacks[source_square] & ~occupancy_bitboards[side];
+
+        // loop through attacked squares
+        while (attacks) {
+            // get target square
+            target_square = get_ls1b_index(attacks);
+            pop_bit(attacks, target_square);
+
+            // get capture
+            capture = get_bit(occupancy_bitboards[!side], target_square) ? 1 : 0;
+
+            // save move
+            move = encode_move(source_square, target_square, (king + side), 0, capture, 0, 0, 0);
+            moves.push_back(move);
+        }
+    }
+
+
+    // SLIDING PIECES (bishop, rook, queen)
+    // bishopsQueens
+    U64 bishopsQueens = piece_bitboards[bishop + side] | piece_bitboards[queen + side];
+    // loop through each bishop on board
+    while (bishopsQueens) {
+        // get source square then pop
+        source_square = get_ls1b_index(bishopsQueens);
+        pop_bit(bishopsQueens, source_square);
+
+        // use attack table lookup, & with friendly pieces to disallow self-capture
+        U64 attacks = get_bishop_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[side];
+
+        // loop through attacked squares
+        while (attacks) {
+            // get target square
+            target_square = get_ls1b_index(attacks);
+            pop_bit(attacks, target_square);
+
+            // get capture
+            capture = get_bit(occupancy_bitboards[!side], target_square) ? 1 : 0;
+
+            // get piece (bishop or queen)
+            piece = get_bit(piece_bitboards[bishop + side], source_square) ? bishop : queen;
+
+            // save move
+            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
+            moves.push_back(move);
+        }
+    }
+
+    // rooksQueens
+    U64 rooksQueens = piece_bitboards[rook + side] | piece_bitboards[queen + side];
+    // loop through each rook on board
+    while (rooksQueens) {
+        // get source square then pop
+        source_square = get_ls1b_index(rooksQueens);
+        pop_bit(rooksQueens, source_square);
+
+        // use attack table lookup, & with friendly pieces to disallow self-capture
+        U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[side];
+
+        // loop through attacked squares
+        while (attacks) {
+            // get target square
+            target_square = get_ls1b_index(attacks);
+            pop_bit(attacks, target_square);
+
+            // get capture
+            capture = get_bit(occupancy_bitboards[!side], target_square) ? 1 : 0;
+
+            // get piece (rook or queen)
+            piece = get_bit(piece_bitboards[rook + side], source_square) ? rook : queen;
+
+            // save move
+            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
+            moves.push_back(move);
+        }
+    }
 
     return moves;
 }

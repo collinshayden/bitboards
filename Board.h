@@ -11,7 +11,7 @@
 class Board {
 public:
     // starting position
-    // pawn/knight/bishop/rook/queen/king, alternating white_pawn/black_pawn etc.
+    // pawn/knight/bishop/rook/queen/king, alternating pawn/black_pawn etc.
     U64 piece_bitboards[12] = {0x00ff000000000000, 0x000000000000ff00, 0x4200000000000000, 0x0000000000000042,
                                0x2400000000000000, 0x0000000000000024, 0x8100000000000000, 0x0000000000000081,
                                0x0800000000000000, 0x0000000000000008, 0x1000000000000000, 0x0000000000000010,};
