@@ -5,9 +5,11 @@
 #ifndef BITBOARDS_BOARD_H
 #define BITBOARDS_BOARD_H
 
-#include "MoveGeneration.h"
+#include "utils.h"
+#include "vector"
 
 class Board {
+public:
     // starting position
     // pawn/knight/bishop/rook/queen/king, alternating white_pawn/black_pawn etc.
     U64 piece_bitboards[12] = {0x00ff000000000000, 0x000000000000ff00, 0x4200000000000000, 0x0000000000000042,
@@ -16,15 +18,15 @@ class Board {
     // occupancies, white, black, both
     U64 occupancy_bitboards[3] = {0xffff000000000000, 0x000000000000ffff, 0xffff00000000ffff,};
 
-    int side = -1; // 0 white, 1 black
+    int side = 0; // 0 white, 1 black
 
     int enpassant = no_sq;
 
     int castle;
 
-    //    U64 generate_pseudo_legal_moves(U64 white_pawns, )
-public:
     void print_board();
+
+    std::vector<int> legal_moves();
 };
 
 

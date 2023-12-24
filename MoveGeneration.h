@@ -9,19 +9,19 @@
 #include "vector"
 
 // attacks masks
-U64 bishop_masks[64];
-U64 rook_masks[64];
+static U64 bishop_masks[64];
+static U64 rook_masks[64];
 
 // pre-calculated attack tables for non-sliding pieces
-U64 pawn_attacks[2][64]; // [color][square]
-U64 knight_attacks[64]; // [square]
-U64 king_attacks[64]; // [square]
+static U64 pawn_attacks[2][64]; // [color][square]
+static U64 knight_attacks[64]; // [square]
+static U64 king_attacks[64]; // [square]
 // pre-calculated attack tables for sliding pieces
-U64 bishop_attacks[64][512]; // [square][occupancies]
-U64 rook_attacks[64][4096]; // [square][occupancies]
+static U64 bishop_attacks[64][512]; // [square][occupancies]
+static U64 rook_attacks[64][4096]; // [square][occupancies]
 
 // how many bits a rook attacks from each square, not including edge squares
-int rook_relevant_bits[64] = {
+static int rook_relevant_bits[64] = {
         12, 11, 11, 11, 11, 11, 11, 12,
         11, 10, 10, 10, 10, 10, 10, 11,
         11, 10, 10, 10, 10, 10, 10, 11,
@@ -33,7 +33,7 @@ int rook_relevant_bits[64] = {
 };
 
 // how many bits a bishop attacks from each square, not including edge squares
-int bishop_relevant_bits[64] = {
+static int bishop_relevant_bits[64] = {
         6, 5, 5, 5, 5, 5, 5, 6,
         5, 5, 5, 5, 5, 5, 5, 5,
         5, 5, 7, 7, 7, 7, 5, 5,
@@ -46,7 +46,7 @@ int bishop_relevant_bits[64] = {
 
 // rook magic numbers
 // sourced from https://www.youtube.com/watch?v=UnEu5GOiSEs&list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs&index=16
-U64 rook_magic_nums[64] = {
+static U64 rook_magic_nums[64] = {
         0x8a80104000800020ULL,
         0x140002000100040ULL,
         0x2801880a0017001ULL,
@@ -114,7 +114,7 @@ U64 rook_magic_nums[64] = {
 };
 
 // bishop magic numbers
-U64 bishop_magic_nums[64] = {
+static U64 bishop_magic_nums[64] = {
         0x40040844404084ULL,
         0x2004208a004208ULL,
         0x10190041080202ULL,
@@ -185,20 +185,22 @@ static inline int count_bits(U64 bitboard);
 static inline int get_ls1b_index(U64 bitboard);
 static inline U64 north_one(U64 bitboard);
 static inline U64 south_one(U64 bitboard);
-U64 mask_pawn_attacks(int square, int side);
-U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty);
-U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty);
-U64 mask_knight_attacks(int square);
-U64 mask_king_attacks(int square);
-U64 mask_rook_attacks(int square);
-U64 mask_bishop_attacks(int square);
-U64 generate_rook_attacks(int square, U64 block);
-U64 generate_bishop_attacks(int square, U64 block);
-U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask);
-void generate_attack_tables_non_sliding();
-void generate_attack_tables_sliding(int bishop);
+static U64 mask_pawn_attacks(int square, int side);
+static U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty);
+static U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty);
+static U64 mask_knight_attacks(int square);
+static U64 mask_king_attacks(int square);
+static U64 mask_rook_attacks(int square);
+static U64 mask_bishop_attacks(int square);
+static U64 generate_rook_attacks(int square, U64 block);
+static U64 generate_bishop_attacks(int square, U64 block);
+static U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask);
+static void generate_attack_tables_non_sliding();
+static void generate_attack_tables_sliding(int bishop);
+void fill_attack_tables();
 static inline U64 get_bishop_attacks(int square, U64 occupancy);
 static inline U64 get_rook_attacks(int square, U64 occupancy);
 static inline U64 get_queen_attacks(int square, U64 occupancy);
 static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side);
+std::vector<int> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side);
 #endif //BITBOARDS_MOVEGENERATION_H

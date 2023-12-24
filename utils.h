@@ -137,9 +137,6 @@ const U64 rank_8 = 0x00000000000000ff;
 // extract castling
 #define get_move_castling(move) ((move & 0x800000) >> 23)
 
-
-
 void print_bitboard(U64 bitboard);
-
 
 #endif //BITBOARDS_UTILS_H

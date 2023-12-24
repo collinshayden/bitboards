@@ -40,7 +40,7 @@ static inline U64 south_one(U64 bitboard) {
 }
 
 // get pawn attack mask
-U64 mask_pawn_attacks(int side, int square) {
+static U64 mask_pawn_attacks(int side, int square) {
     U64 attacks = 0ULL;
     U64 bitboard = 0ULL;
 
@@ -66,7 +66,7 @@ U64 mask_pawn_attacks(int side, int square) {
 /// \param pawns bitboard of pawn locations
 /// \param empty bitboard of empty squares
 /// \return bitboard of possible pawn pushes
-U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty) {
+static U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty) {
     return side ? (south_one(pawns) & empty) : (north_one(pawns) & empty);
 }
 
@@ -75,7 +75,7 @@ U64 mask_single_pawn_pushes(int side, U64 pawns, U64 empty) {
 /// \param pawns bitboard of pawn locations
 /// \param empty bitboard of empty squares
 /// \return U64 bitboard of possible pawn pushes
-U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
+static U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
     // get single pushes
     U64 single_pushes = mask_single_pawn_pushes(side, pawns, empty);
     if (!side) {
@@ -89,7 +89,7 @@ U64 mask_double_pawn_pushes(int side, U64 pawns, U64 empty) {
 
 
 // bit shifts to get knight attacks
-U64 mask_knight_attacks(int square) {
+static U64 mask_knight_attacks(int square) {
     U64 attacks = 0ULL;
     U64 bitboard = 0ULL;
 
@@ -109,7 +109,7 @@ U64 mask_knight_attacks(int square) {
 }
 
 // get king attack mask using bit shifts
-U64 mask_king_attacks(int square) {
+static U64 mask_king_attacks(int square) {
     U64 attacks = 0ULL;
     U64 bitboard = 0ULL;
 
@@ -130,7 +130,7 @@ U64 mask_king_attacks(int square) {
 
 // generate occupancy squares for bishop moves
 // basically get all the squares the bishop attacks, not including the edge of the board
-U64 mask_bishop_attacks(int square) {
+static U64 mask_bishop_attacks(int square) {
     U64 attacks = 0ULL;
 
     int rank, file;
@@ -160,7 +160,7 @@ U64 mask_bishop_attacks(int square) {
 }
 
 // generate all squares attacked by a bishop, including the edge squares
-U64 generate_bishop_attacks(int square, U64 block) {
+static U64 generate_bishop_attacks(int square, U64 block) {
     U64 attacks = 0ULL;
 
     int rank, file;
@@ -196,7 +196,7 @@ U64 generate_bishop_attacks(int square, U64 block) {
 
 // generate occupancy squares for rook moves
 // basically get all the squares the rook attacks, not including the edge of the board
-U64 mask_rook_attacks(int square) {
+static U64 mask_rook_attacks(int square) {
     U64 attacks = 0ULL;
 
     int rank, file;
@@ -214,7 +214,7 @@ U64 mask_rook_attacks(int square) {
 }
 
 // generate all squares attacked by a rook, including the edge squares
-U64 generate_rook_attacks(int square, U64 block) {
+static U64 generate_rook_attacks(int square, U64 block) {
     U64 attacks = 0ULL;
 
     int rank, file;
@@ -244,7 +244,7 @@ U64 generate_rook_attacks(int square, U64 block) {
 }
 
 // set the occupancy for a bitboard
-U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask) {
+static U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask) {
     U64 occupancy = 0ULL;
 
     for (int i = 0; i < bits_in_mask; i++) {
@@ -264,7 +264,7 @@ U64 set_occupancy(int index, int bits_in_mask, U64 attack_mask) {
 }
 
 // fill attack tables for the non-sliding pieces (pawn, king, knight)
-void generate_attack_tables_non_sliding() {
+static void generate_attack_tables_non_sliding() {
     for (int square = 0; square < 64; square++) { // loop through every square
         // fill table for given square
         pawn_attacks[white][square] = mask_pawn_attacks(white, square);
@@ -275,7 +275,7 @@ void generate_attack_tables_non_sliding() {
 }
 
 // fill attack tables for sliding pieces (rook + bishop)
-void generate_attack_tables_sliding(int bishop) {
+static void generate_attack_tables_sliding(int bishop) {
     for (int square = 0; square < 64; square++) {
         // init masks
         bishop_masks[square] = mask_bishop_attacks(square);
@@ -311,6 +311,13 @@ void generate_attack_tables_sliding(int bishop) {
         }
     }
 }
+
+void fill_attack_tables() {
+    generate_attack_tables_non_sliding();
+    generate_attack_tables_sliding(1);
+    generate_attack_tables_sliding(0);
+}
+
 /// get bishop attacks using magic number for table lookup
 /// \param square int
 /// \param occupancy U64 bitboard of occupied squares
@@ -386,49 +393,15 @@ static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int sq
 }
 
 
-
-std::vector<std::pair<int, int>> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side) {
+std::vector<int> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side) {
     // vector of move pairs (start_pos, end_pos)
-    std::vector<std::pair<int, int>> moves = {};
+    std::vector<int> moves = {};
 
     U64 empty = ~occupancy_bitboards[all];
     U64 single_pawn_pushes = mask_single_pawn_pushes(side, piece_bitboards[white_pawn + side], empty);
     print_bitboard(single_pawn_pushes);
 
-
+    return moves;
 }
 
-int main() {
-    generate_attack_tables_sliding(1);
-    generate_attack_tables_sliding(0);
-    generate_attack_tables_non_sliding();
-//    U64 occupancy_bitboards[3] = {0xffff000000000000, 0x000000000000ffff, 0xffff00000000ffff,};
-//    U64 occupied = 0ULL;
-//    U64 piece_bitboards[12] = {0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL, 0ULL,};
-//    int side = 0; // white
-//    piece_bitboards[white_pawn + side] = 0x000100000000000;
-//    print_bitboard(piece_bitboards[white_pawn + side]);
-//
-//    pseudo_legal_moves(occupancy_bitboards,piece_bitboards, side);
 
-
-    // create move
-    int move = encode_move(d7, e8, white_pawn, white_queen, 0, 0, 0, 0);
-
-    // exract move items
-    int source_square = get_move_source(move);
-    int target_square = get_move_target(move);
-    int piece = get_move_piece(move);
-    int promoted_piece = get_move_promoted(move);
-
-    // print move items
-    printf("source square: %s\n", square_to_cord[source_square]);
-    printf("target square: %s\n", square_to_cord[target_square]);
-    printf("piece: %s\n", unicode_pieces[piece]);
-    printf("piece: %s\n", unicode_pieces[promoted_piece]);
-    printf("capture flag: %d\n", get_move_capture(move) ? 1 : 0);
-    printf("double pawn push flag: %d\n", get_move_double_push(move) ? 1 : 0);
-    printf("enpassant flag: %d\n", get_move_enpassant(move) ? 1 : 0);
-    printf("castling flag: %d\n", get_move_castling(move) ? 1 : 0);
-    return 0;
-}

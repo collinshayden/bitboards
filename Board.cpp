@@ -3,7 +3,7 @@
 //
 
 #include "Board.h"
-
+#include "MoveGeneration.h"
 
 void Board::print_board() {
     for (int rank = 0; rank < 8; rank++) {
@@ -29,11 +29,12 @@ void Board::print_board() {
     printf("\n    Castling: %c%c%c%c\n\n", ((castle * wk) ? 'K' : '-'), ((castle * wq) ? 'Q' : '-'), ((castle * bk) ? 'k' : '-'), ((castle * bq) ? 'q' : '-'));
 }
 
-int main() {
-//    Board board;
-//    board.print_board();
+std::vector<int> Board::legal_moves() {
 
 
+    std::vector<int> pseudo = pseudo_legal_moves(occupancy_bitboards, piece_bitboards, side);
 
-    return 0;
+    return pseudo;
 }
+
+
