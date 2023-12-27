@@ -26,7 +26,8 @@ public:
 
     void print_board();
 
-    std::vector<int> legal_moves();
+    void makeMove(int move);
+
 };
 
 

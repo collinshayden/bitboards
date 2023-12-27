@@ -201,6 +201,9 @@ void fill_attack_tables();
 static inline U64 get_bishop_attacks(int square, U64 occupancy);
 static inline U64 get_rook_attacks(int square, U64 occupancy);
 static inline U64 get_queen_attacks(int square, U64 occupancy);
-static inline bool attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side);
-std::vector<int> pseudo_legal_moves(const U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side);
+static inline bool is_attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side);
+U64 attacked_squares(const U64 occupancy_bitboards[3], const U64 piece_bitboards[12], int by_side);
+U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces[2], U64 occupancy[3]);
+std::vector<int> pseudo_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int side);
+std::vector<int> get_legal_moves(U64 occupancy_bitboards, U64 piece_bitboards[12], int side);
 #endif //BITBOARDS_MOVEGENERATION_H

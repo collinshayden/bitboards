@@ -29,12 +29,38 @@ void Board::print_board() {
     printf("\n    Castling: %c%c%c%c\n\n", ((castle * wk) ? 'K' : '-'), ((castle * wq) ? 'Q' : '-'), ((castle * bk) ? 'k' : '-'), ((castle * bq) ? 'q' : '-'));
 }
 
-std::vector<int> Board::legal_moves() {
+void Board::makeMove(int move) {
+    int source_square = get_move_source(move);
+    int target_square = get_move_target(move);
+    int piece = get_move_piece(move);
+    int capture = get_move_capture(move);
+    int promoted = get_move_promoted(move);
+    int double_push = get_move_double_push(move);
+    int en_passant = get_move_enpassant(move);
+    int castling = get_move_castling(move);
 
+    // if captured, figure out what piece was captured and remove it from the respective bitboard
+    if (capture) {
+        for (int piece_type = 0; piece_type < 12; piece_type++) {
+            if (get_bit(piece_bitboards[piece_type], target_square)) {
+                pop_bit(piece_bitboards[piece_type], target_square);
+            }
+        }
+    }
+    // if promoted, put promoted piece in respective bitboard, else put piece on target square
+    if (promoted) set_bit(piece_bitboards[promoted], target_square);
+    else set_bit(piece_bitboards[piece], target_square);
 
-    std::vector<int> pseudo = pseudo_legal_moves(occupancy_bitboards, piece_bitboards, side);
+    // remove from piece bitboard
+    pop_bit(piece_bitboards[piece], source_square);
 
-    return pseudo;
+    // update occupancies
+    set_bit(occupancy_bitboards[side], target_square);
+    set_bit(occupancy_bitboards[all], target_square);
+    pop_bit(occupancy_bitboards[side], source_square);
+    pop_bit(occupancy_bitboards[all], source_square);
 }
+
+
 
 
