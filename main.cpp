@@ -41,6 +41,6 @@ int main() {
         printf("%s%s capture: %d\n", square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)],
                get_move_capture(move));
     }
-    
+
     return 0;
 }
