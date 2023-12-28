@@ -9,6 +9,8 @@
 
 #define U64 unsigned long long
 
+// 0000110000
+
 // colors
 enum {
     white, black, all
