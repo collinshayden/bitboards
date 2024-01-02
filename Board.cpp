@@ -61,6 +61,24 @@ void Board::makeMove(int move) {
     pop_bit(occupancy_bitboards[all], source_square);
 }
 
+std::vector<int> Board::get_legal_moves() {
+    std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side);
+    return legal_moves;
+}
+
+void Board::print_legal_moves(const std::vector<int>& legal_moves) {
+    for (int move: legal_moves) {
+        if (get_move_promoted(move)) {
+            printf("%s%s=%d capture: %d\n", square_to_cord[get_move_source(move)],
+                   square_to_cord[get_move_target(move)], get_move_promoted(move), get_move_capture(move));
+        } else {
+            printf("%s%s capture: %d\n", square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)],
+                   get_move_capture(move));
+        }
+    }
+
+}
+
 
 
 

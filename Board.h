@@ -28,6 +28,10 @@ public:
 
     void makeMove(int move);
 
+    std::vector<int> get_legal_moves();
+
+    void print_legal_moves(const std::vector<int>& legal_moves);
+
 };
 
 
