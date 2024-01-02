@@ -679,7 +679,8 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
 /// \param for_side
 /// \return
 // reference https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
-std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side) {
+std::vector<int>
+generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side, int castling_rights) {
     // init variables
     std::vector<int> legal_moves = {};
     int move, source_square, target_square, capture, promoted;
@@ -708,7 +709,6 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
             }
         }
 
-        // TODO castling
         move = encode_move(source_square, target_square, (king + for_side), 0, capture, 0, 0, 0);
         legal_moves.push_back(move);
     }
@@ -740,6 +740,66 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
             push_mask = 0ULL; // empty bitboard
         }
     }
+        // if king is not in check
+        //castling
+    else {
+        // white
+        if (!for_side) {
+            U64 opp_attacked_squares = attacked_squares(occupancy_bitboards, piece_bitboards, black);
+            // check castling rights
+            if (castling_rights & wk) {
+                // if the squares between rook and king are empty
+                if (!(castling_squares[0] & occupancy_bitboards[all])) {
+                    // if the squares that the king crosses are not attacked
+                    if (!(castling_squares[0] & opp_attacked_squares)) {
+                        // then castling kingside is legal
+                        move = encode_move(e1, g1, king, 0, 0, 0, 0, 1);
+                        legal_moves.push_back(move);
+                    }
+                }
+            }
+            // check castling rights
+            if (castling_rights & wq) {
+                // if the squares between rook and king are empty
+                if (!(castling_squares[1] & occupancy_bitboards[all])) {
+                    // if the squares that the king crosses are not attacked
+                    if (!(queenside_occupancy[0] & opp_attacked_squares)) {
+                        // then castling queenside is legal
+                        move = encode_move(e1, c1, king, 0, 0, 0, 0, 1);
+                        legal_moves.push_back(move);
+                    }
+                }
+            }
+        }
+            // black
+        else {
+            U64 opp_attacked_squares = attacked_squares(occupancy_bitboards, piece_bitboards, white);
+            // check castling rights
+            if (castling_rights & bk) {
+                // if the squares between rook and king are empty
+                if (!(castling_squares[2] & occupancy_bitboards[all])) {
+                    // if the squares that the king crosses are not attacked
+                    if (!(castling_squares[2] & opp_attacked_squares)) {
+                        // then castling kingside is legal
+                        move = encode_move(e8, g8, king, 0, 0, 0, 0, 1);
+                        legal_moves.push_back(move);
+                    }
+                }
+            }
+            // check castling rights
+            if (castling_rights & bq) {
+                // if the squares between rook and king are empty
+                if (!(queenside_occupancy[1] & occupancy_bitboards[all])) {
+                    // if the squares that the king crosses are not attacked
+                    if (!(castling_squares[3] & opp_attacked_squares)) {
+                        // then castling queenside is legal
+                        move = encode_move(e8, c8, king, 0, 0, 0, 0, 1);
+                        legal_moves.push_back(move);
+                    }
+                }
+            }
+        }
+    }
 
     // calculate pinned pieces
     U64 pinned_pieces = get_pinned_pieces(source_square, for_side, opp_sliding_pieces, occupancy_bitboards);
@@ -750,8 +810,6 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
     legal_moves.insert(legal_moves.end(), moves.begin(), moves.end());
 
     // moves for the rest of the pieces (non-king, non-pinned, while king not in check)
-    // TODO capture and push mask dont forget
-
     // pawn pushes
     U64 pawns = piece_bitboards[pawn + for_side] & non_pinned_pieces;
     U64 single_pawn_pushes = mask_single_pawn_pushes(for_side, pawns, empty);
@@ -771,12 +829,11 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
 
         // promotion
         if (target_bb & (rank_1 | rank_8)) {
-            for (int promote_type = 2 + for_side; promote_type < 10; promote_type+=2) {
+            for (int promote_type = 2 + for_side; promote_type < 10; promote_type += 2) {
                 move = encode_move(source_square, target_square, (pawn + for_side), promote_type, 0, 0, 0, 0);
                 legal_moves.push_back(move);
             }
-        }
-        else {
+        } else {
             move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 0, 0, 0);
             legal_moves.push_back(move);
         }
@@ -817,7 +874,8 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
                 set_bit(target_bb, target_square);
                 if (target_bb & (rank_1 | rank_8)) {
                     for (int promote_type = 2 + for_side; promote_type < 10; promote_type++) {
-                        move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0, 0);
+                        move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0,
+                                           0);
                         legal_moves.push_back(move);
                     }
                 }// if not promotion
@@ -866,7 +924,8 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
         pop_bit(bishopsQueens, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = get_bishop_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
+        U64 attacks = get_bishop_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] &
+                      (push_mask | capture_mask);
 
         // loop through attacked squares
         while (attacks) {
@@ -895,7 +954,8 @@ std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitb
         pop_bit(rooksQueens, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
+        U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] &
+                      (push_mask | capture_mask);
 
         // loop through attacked squares
         while (attacks) {
