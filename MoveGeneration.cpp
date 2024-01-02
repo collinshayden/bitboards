@@ -679,7 +679,7 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
 /// \param for_side
 /// \return
 // reference https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
-std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side) {
+std::vector<int> generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side) {
     // init variables
     std::vector<int> legal_moves = {};
     int move, source_square, target_square, capture, promoted;
@@ -764,19 +764,30 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
     while (single_pawn_pushes) {
         // get target and source
         target_square = get_ls1b_index(single_pawn_pushes);
+        U64 target_bb = 0ULL;
+        set_bit(target_bb, target_square);
         source_square = for_side ? target_square - 8 : target_square + 8;
-        pop_bit(single_pawn_pushes, source_square);
+        pop_bit(single_pawn_pushes, target_square);
 
-        // TODO promotion
-        move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 0, 0, 0);
-        legal_moves.push_back(move);
+        // promotion
+        if (target_bb & (rank_1 | rank_8)) {
+            for (int promote_type = 2 + for_side; promote_type < 10; promote_type+=2) {
+                move = encode_move(source_square, target_square, (pawn + for_side), promote_type, 0, 0, 0, 0);
+                legal_moves.push_back(move);
+            }
+        }
+        else {
+            move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 0, 0, 0);
+            legal_moves.push_back(move);
+        }
+
     }
 
     while (double_pawn_pushes) {
         // get target and source
         target_square = get_ls1b_index(double_pawn_pushes);
-        source_square = for_side ? target_square - 8 : target_square + 8;
-        pop_bit(double_pawn_pushes, source_square);
+        source_square = for_side ? target_square - 16 : target_square + 16;
+        pop_bit(double_pawn_pushes, target_square);
 
         move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 1, 0, 0);
         legal_moves.push_back(move);
@@ -790,8 +801,7 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
         pop_bit(pawns, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = pawn_attacks[for_side][source_square] & ~occupancy_bitboards[for_side] & capture_mask;
-
+        U64 attacks = pawn_attacks[for_side][source_square] & occupancy_bitboards[!for_side] & capture_mask;
         // loop through attacked squares
         while (attacks) {
             // get target square
@@ -802,8 +812,19 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
             if (capture) {
                 // save move
-                move = encode_move(source_square, target_square, for_side, 0, capture, 0, 0, 0);
-                moves.push_back(move);
+                // promotion
+                U64 target_bb = 0ULL;
+                set_bit(target_bb, target_square);
+                if (target_bb & (rank_1 | rank_8)) {
+                    for (int promote_type = 2 + for_side; promote_type < 10; promote_type++) {
+                        move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0, 0);
+                        legal_moves.push_back(move);
+                    }
+                }// if not promotion
+                else {
+                    move = encode_move(source_square, target_square, (pawn + for_side), 0, capture, 0, 0, 0);
+                    legal_moves.push_back(move);
+                }
             }
         }
     }
@@ -817,8 +838,8 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
         pop_bit(knights, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = knight_attacks[source_square] & ~occupancy_bitboards[for_side];
-
+        U64 attacks = knight_attacks[source_square] & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
+        print_bitboard(attacks);
         // loop through attacked squares
         while (attacks) {
             // get target square
@@ -830,7 +851,8 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
 
             // save move
             move = encode_move(source_square, target_square, (knight + for_side), 0, capture, 0, 0, 0);
-            moves.push_back(move);
+            legal_moves.push_back(move);
+
         }
     }
 
@@ -844,7 +866,7 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
         pop_bit(bishopsQueens, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = get_bishop_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side];
+        U64 attacks = get_bishop_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
 
         // loop through attacked squares
         while (attacks) {
@@ -860,7 +882,7 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
 
             // save move
             move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
-            moves.push_back(move);
+            legal_moves.push_back(move);
         }
     }
 
@@ -873,7 +895,7 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
         pop_bit(rooksQueens, source_square);
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side];
+        U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
 
         // loop through attacked squares
         while (attacks) {
@@ -889,11 +911,9 @@ std::vector<int> get_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards
 
             // save move
             move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
-            moves.push_back(move);
+            legal_moves.push_back(move);
         }
     }
-
-
     return legal_moves;
 }
 
