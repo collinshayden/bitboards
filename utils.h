@@ -50,6 +50,8 @@ extern const char *square_to_cord[64];
 
 extern const char *unicode_pieces[12];
 
+extern const char pieces[12];
+
 
 //Files
 const U64 file_A = 0x0101010101010101;

@@ -18,6 +18,9 @@ const char *square_to_cord[64] = {
 // unicode pieces
 const char *unicode_pieces[12] = {"♟︎", "♙", "♞", "♘", "♝", "♗", "♜", "♖", "♛", "♕", "♚","♔",};
 
+const char pieces[12] = {'P', 'p', 'N', 'n', 'B', 'b', 'R', 'r', 'Q', 'q', 'K', 'k'};
+
+
 // print bitboard function
 void print_bitboard(U64 bitboard) {
     printf("\n");
