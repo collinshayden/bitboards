@@ -22,7 +22,7 @@ public:
 
     int enpassant = no_sq;
 
-    int castle;
+    uint8_t castling_rights = 0xf;
 
     void print_board();
 

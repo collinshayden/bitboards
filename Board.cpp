@@ -26,7 +26,7 @@ void Board::print_board() {
     printf("\n    a b c d e f g h\n");
     printf("\n    Side: %s", (side ? "white" : "black"));
     printf("\n    Enpass: %s", (enpassant != no_sq) ? square_to_cord[enpassant] : "no");
-    printf("\n    Castling: %c%c%c%c\n\n", ((castle * wk) ? 'K' : '-'), ((castle * wq) ? 'Q' : '-'), ((castle * bk) ? 'k' : '-'), ((castle * bq) ? 'q' : '-'));
+    printf("\n    Castling: %c%c%c%c\n\n", ((castling_rights * wk) ? 'K' : '-'), ((castling_rights * wq) ? 'Q' : '-'), ((castling_rights * bk) ? 'k' : '-'), ((castling_rights * bq) ? 'q' : '-'));
 }
 
 void Board::makeMove(int move) {
@@ -62,7 +62,7 @@ void Board::makeMove(int move) {
 }
 
 std::vector<int> Board::get_legal_moves() {
-    std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side);
+    std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side, castling_rights);
     return legal_moves;
 }
 
