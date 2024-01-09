@@ -7,6 +7,8 @@
 
 #include "utils.h"
 #include "vector"
+#include <string>
+#include <sstream>
 
 class Board {
 public:
@@ -18,17 +20,24 @@ public:
     // occupancies, white, black, both
     U64 occupancy_bitboards[3] = {0xffff000000000000, 0x000000000000ffff, 0xffff00000000ffff,};
 
-    int side = 0; // 0 white, 1 black
+    int side_to_move = 0; // 0 white, 1 black
 
     int enpassant = no_sq;
 
     uint8_t castling_rights = 0xf;
 
-    void print_board();
+    int half_move = 0;
+
+    int full_move = 1;
+
+    void load_FEN(const std::string& FEN);
 
     void makeMove(int move);
+    void undoMove(int move);
 
     std::vector<int> get_legal_moves();
+
+    void print_board();
 
     void print_legal_moves(const std::vector<int>& legal_moves);
 
