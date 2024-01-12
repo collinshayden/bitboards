@@ -109,8 +109,8 @@ void Board::print_legal_moves(const std::vector<int> &legal_moves) {
             printf("%s%s=%d capture: %d\n", square_to_cord[get_move_source(move)],
                    square_to_cord[get_move_target(move)], get_move_promoted(move), get_move_capture(move));
         } else {
-            printf("%s%s capture: %d\n", square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)],
-                   get_move_capture(move));
+            printf("%s%s capture: %d castling: %d en passant: %d\n", square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)],
+                   get_move_capture(move), get_move_castling(move), get_move_enpassant(move));
         }
     }
 }
