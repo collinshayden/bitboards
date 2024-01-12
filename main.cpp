@@ -22,10 +22,11 @@ int main() {
     fill_attack_tables();
     Board board;
 
-    board.load_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+//    board.load_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    board.load_FEN("8/8/8/1k6/p5pP/8/8/K7 b - h3 0 1");
 
-//    std::vector<int> moves = board.get_legal_moves();
-//    board.print_legal_moves(moves);
+    std::vector<int> moves = board.get_legal_moves();
+    board.print_legal_moves(moves);
 
     board.print_board();
     return 0;

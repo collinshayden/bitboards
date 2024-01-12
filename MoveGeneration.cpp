@@ -352,15 +352,15 @@ static inline U64 get_queen_attacks(int square, U64 occupancy) {
     return get_rook_attacks(square, occupancy) | get_bishop_attacks(square, occupancy);
 }
 
-/// function to determine if a given square is is_attacked by the given side
+/// function to determine if a given square is is_attacked by the given side_to_move
 /// the general idea of this function is to assume one of each piece type is actually currently on the square
 /// and then check the is_attacked squares for enemy pieces
 /// basically using rays going outwards from target square
 /// \param piece_bitboards bitboards for all the pieces (white and black)
 /// \param occupancy bitboard of occupied squares
 /// \param square square to check if it is is_attacked
-/// \param by_side (0 for white, 1 for black) side to check if they attack that square
-/// \return bool if square is is_attacked by given side
+/// \param by_side (0 for white, 1 for black) side_to_move to check if they attack that square
+/// \return bool if square is is_attacked by given side_to_move
 // source https://www.chessprogramming.org/Square_Attacked_By
 inline bool is_attacked(const U64 piece_bitboards[12], U64 occupancy, int square, int by_side) {
     // the pieces enum is laid out as pawn, black_pawn, knight, black_knight, etc
@@ -576,8 +576,8 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 /// \param pinned
 /// \return
 std::vector<int>
-get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12],
-                 const U64 occupancy[3], U64 pinned_pieces) {
+get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12], const U64 occupancy[3],
+                 U64 pinned_pieces, U64 ep_bb) {
     U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned_bishop_rays, pinned_rook_rays, temp_occupancy, target_squares = 0ULL, captures = 0ULL;
     U64 bishopQueens = opp_slider_pieces[0];
     U64 rookQueens = opp_slider_pieces[1];
@@ -629,8 +629,13 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
         }
             // pawn captures
         else {
-            // TODO fix
             target_squares |= opp_bishop_attack_rays & occupancy[!for_side] & pawn_attacks[for_side][pinned_square];
+            // en passant
+            if (ep_bb & opp_bishop_attack_rays & pawn_attacks[for_side][pinned_square]) {
+                target_square = get_ls1b_index(ep_bb);
+                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 1, 0);
+                moves.push_back(move);
+            }
         }
         // rook / queen
         if (pinned_piece_type == rook || pinned_piece_type == queen) {
@@ -680,18 +685,25 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
 /// \return
 // reference https://peterellisjones.com/posts/generating-legal-chess-moves-efficiently/
 std::vector<int>
-generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side, int castling_rights) {
+generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int for_side, int castling_rights,
+                     int ep_sq) {
     // init variables
     std::vector<int> legal_moves = {};
-    int move, source_square, target_square, capture, promoted;
+    int move, source_square, target_square, capture, promoted, en_passant;
     U64 opp_sliding_pieces[2] = {(piece_bitboards[bishop + !for_side] | piece_bitboards[queen + !for_side]),
                                  (piece_bitboards[rook + !for_side] | piece_bitboards[queen + !for_side])};
     U64 king_danger_bitboard = get_king_danger_squares(occupancy_bitboards, piece_bitboards, for_side);
     U64 king_attackers = get_king_attackers(occupancy_bitboards, piece_bitboards, for_side);
-    U64 empty = ~occupancy_bitboards[all], pieces;
+    U64 empty = ~occupancy_bitboards[all];
     // squares we can capture or push to, init as all squares, narrowed when in check
     U64 capture_mask = 0xFFFFFFFFFFFFFFFF;
     U64 push_mask = 0xFFFFFFFFFFFFFFFF;
+
+    // for en passant
+    U64 ep_bb = 0ULL;
+    if (ep_sq != no_sq)
+        set_bit(ep_bb, ep_sq);
+    U64 all_pawn_attacks = 0ULL;
 
     // king (this assumes only one king on board)
     source_square = get_ls1b_index(piece_bitboards[king + for_side]);
@@ -805,10 +817,9 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     U64 pinned_pieces = get_pinned_pieces(source_square, for_side, opp_sliding_pieces, occupancy_bitboards);
     U64 non_pinned_pieces = occupancy_bitboards[for_side] & ~pinned_pieces;
 
-    std::vector<int> moves = get_pinned_moves(source_square, for_side, opp_sliding_pieces, piece_bitboards,
-                                              occupancy_bitboards, pinned_pieces);
+    std::vector<int> moves = get_pinned_moves(for_side, opp_sliding_pieces, piece_bitboards, occupancy_bitboards,
+                                              pinned_pieces, ep_bb);
     legal_moves.insert(legal_moves.end(), moves.begin(), moves.end());
-
     // moves for the rest of the pieces (non-king, non-pinned, while king not in check)
     // pawn pushes
     U64 pawns = piece_bitboards[pawn + for_side] & non_pinned_pieces;
@@ -851,14 +862,44 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     }
 
     // pawn captures
-    // TODO promotion
     while (pawns) {
         // get source square then pop
         source_square = get_ls1b_index(pawns);
         pop_bit(pawns, source_square);
 
-        // use attack table lookup, & with friendly pieces to disallow self-capture
-        U64 attacks = pawn_attacks[for_side][source_square] & occupancy_bitboards[!for_side] & capture_mask;
+        // use attack table lookup and capture mask to get all attacks
+        U64 attacks = pawn_attacks[for_side][source_square] & capture_mask;
+
+        // en passant
+        if (ep_bb & attacks & capture_mask) {
+            // get square of opp pawn being captured
+            target_square = for_side ? ep_sq - 8 : ep_sq + 8;
+            int king_square = get_ls1b_index(piece_bitboards[king + for_side]);
+
+            // remove both pawns involved from the board
+            pop_bit(piece_bitboards[pawn + for_side], source_square);
+            pop_bit(piece_bitboards[pawn + !for_side], target_square);
+            pop_bit(occupancy_bitboards[for_side], source_square);
+            pop_bit(occupancy_bitboards[!for_side], target_square);
+
+            // check if the resulting position has the king in check
+            bool king_in_check = is_attacked(piece_bitboards, *occupancy_bitboards, king_square, !for_side);
+            // if not, en passant is legal
+            if (!king_in_check) {
+                move = encode_move(source_square, ep_sq, (pawn + for_side), 0, 1, 0, 1, 0);
+                legal_moves.push_back(move);
+            }
+
+            // add both pawns involved back to the board
+            set_bit(piece_bitboards[pawn + for_side], source_square);
+            set_bit(piece_bitboards[pawn + !for_side], target_square);
+            set_bit(occupancy_bitboards[for_side], source_square);
+            set_bit(occupancy_bitboards[!for_side], target_square);
+        }
+
+        // for non-en passant, it must be a capture
+        attacks &= occupancy_bitboards[!for_side];
+
         // loop through attacked squares
         while (attacks) {
             // get target square
@@ -897,7 +938,6 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
         // use attack table lookup, & with friendly pieces to disallow self-capture
         U64 attacks = knight_attacks[source_square] & ~occupancy_bitboards[for_side] & (push_mask | capture_mask);
-        print_bitboard(attacks);
         // loop through attacked squares
         while (attacks) {
             // get target square
@@ -916,7 +956,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
     // SLIDING PIECES (bishop, rook, queen)
     // bishopsQueens
-    U64 bishopsQueens = piece_bitboards[bishop + for_side] | piece_bitboards[queen + for_side] & non_pinned_pieces;
+    U64 bishopsQueens = (piece_bitboards[bishop + for_side] | piece_bitboards[queen + for_side]) & non_pinned_pieces;
     // loop through each bishop on board
     while (bishopsQueens) {
         // get source square then pop
@@ -946,7 +986,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     }
 
     // rooksQueens
-    U64 rooksQueens = piece_bitboards[rook + for_side] | piece_bitboards[queen + for_side] & non_pinned_pieces;
+    U64 rooksQueens = (piece_bitboards[rook + for_side] | piece_bitboards[queen + for_side]) & non_pinned_pieces;
     // loop through each rook on board
     while (rooksQueens) {
         // get source square then pop

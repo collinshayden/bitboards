@@ -99,7 +99,7 @@ void Board::undoMove(int move) {
 
 std::vector<int> Board::get_legal_moves() {
     std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side_to_move,
-                                                        castling_rights);
+                                                        castling_rights, enpassant);
     return legal_moves;
 }
 
