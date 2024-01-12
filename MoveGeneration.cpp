@@ -527,6 +527,24 @@ U64 get_slider_rays_from_square(int square, U64 opp_slider_pieces) {
     return rays;
 }
 
+/// get attack ray between two squares
+/// \param from_square
+/// \param to_square
+/// \param occupancy
+/// \return
+U64 opp_slider_rays_to_square(int from_square, int to_square, U64 occupancy) {
+    U64 rays = 0ULL;
+    // if they are on the same file, then use rook attacks
+    if (from_square % 8 == to_square % 8) {
+        rays |= get_rook_attacks(from_square, occupancy) & get_rook_attacks(to_square, occupancy);
+    }
+    // if not on same file, use bishop attacks
+    else {
+        rays |= get_bishop_attacks(from_square, occupancy) & get_bishop_attacks(to_square, occupancy);
+    }
+    return rays;
+}
+
 /// get a bitboard of (absolutely) pinned pieces
 /// \param king_square
 /// \param opp_slider_pieces[2] bishopQueens, rookQueens
@@ -690,6 +708,8 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     int move, source_square, target_square, capture, promoted, en_passant;
     U64 opp_sliding_pieces[2] = {(piece_bitboards[bishop + !for_side] | piece_bitboards[queen + !for_side]),
                                  (piece_bitboards[rook + !for_side] | piece_bitboards[queen + !for_side])};
+    U64 friendly_sliding_pieces[2] = {(piece_bitboards[bishop + for_side] | piece_bitboards[queen + for_side]),
+                                 (piece_bitboards[rook + for_side] | piece_bitboards[queen + for_side])};
     U64 king_danger_bitboard = get_king_danger_squares(occupancy_bitboards, piece_bitboards, for_side);
     U64 king_attackers = get_king_attackers(occupancy_bitboards, piece_bitboards, for_side);
     U64 empty = ~occupancy_bitboards[all];
@@ -726,7 +746,6 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     // if the number of attackers on the king is > 1, we are in double check.
     // The only legal moves to get out of double check are king moves, so we can exit early
     int num_king_attackers = count_bits(king_attackers);
-
     if (num_king_attackers > 1) {
         return legal_moves;
     }
@@ -736,13 +755,13 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         // 3. Block the checking piece (if being checked by a rook, bishop or queen)
     else if (num_king_attackers == 1) {
         capture_mask = king_attackers; // option 2, we can capture the checking piece
-
         int attacker_square = get_ls1b_index(king_attackers);
 
         // if the checking piece is a slider
         if (get_bit((opp_sliding_pieces[0] | opp_sliding_pieces[1]), attacker_square)) {
             // option 3, we can block the checking piece
-            push_mask = get_slider_rays_from_square(source_square, (opp_sliding_pieces[0] | opp_sliding_pieces[1]));
+            push_mask = opp_slider_rays_to_square(attacker_square, source_square, occupancy_bitboards[all]);
+            print_bitboard(push_mask);
         }
             // if the checking piece is not a slider
         else {

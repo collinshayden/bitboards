@@ -23,11 +23,13 @@ int main() {
     Board board;
 
 //    board.load_FEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    board.load_FEN("r1bqk2r/pppp1ppp/2n2n2/4p3/1b2P3/2NP1N2/PPP2PPP/R1BQKB1R w KQkq - 0 1");
+    board.load_FEN("r3k2r/ppppqppp/1bn2n2/3Np3/1b2P3/1B1PQN2/PPP1BPPP/R3K2R w KQkq - 0 1");
 
     std::vector<int> moves = board.get_legal_moves();
     board.print_legal_moves(moves);
 
     board.print_board();
+
+    printf("%d", b8 % 8);
     return 0;
 }
