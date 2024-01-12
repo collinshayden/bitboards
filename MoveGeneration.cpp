@@ -569,7 +569,6 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 
 /// get the legal moves of a pinned piece
 /// could probably optimize to remove the redundant code from get_pinned_pieces
-/// \param king_square
 /// \param for_side
 /// \param opp_slider_pieces
 /// \param occupancy
@@ -582,99 +581,98 @@ get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_b
     U64 bishopQueens = opp_slider_pieces[0];
     U64 rookQueens = opp_slider_pieces[1];
     std::vector<int> moves;
-    int pinned_square, pinned_piece_type, pinner_square, target_square, move;
-
-    pinned_square = get_ls1b_index(pinned_pieces);
-
+    int pinned_square, pinned_piece_type = -1, pinner_square, target_square, move;
     int possibly_pinned_pieces[4] = {pawn, bishop, rook, queen};
-    for (int piece_type: possibly_pinned_pieces) {
-        if (get_bit(piece_bitboards[piece_type + for_side], pinned_square)) {
-            pinned_piece_type = piece_type;
-        }
-    }
 
     while (pinned_pieces) {
+        pinned_piece_type = -1;
         pinned_square = get_ls1b_index(pinned_pieces);
         pop_bit(pinned_pieces, pinned_square);
-
-        // occupancy without the pinned piece
-        temp_occupancy = occupancy[all];
-        pop_bit(temp_occupancy, pinned_square);
-
-        // get attacked squares by bishops
-        while (bishopQueens) {
-            pinner_square = get_ls1b_index(bishopQueens);
-            opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, temp_occupancy);
-            set_bit(opp_bishop_attack_rays, pinner_square);
-            pop_bit(bishopQueens, pinner_square);
+        for (int piece_type: possibly_pinned_pieces) {
+            if (get_bit(piece_bitboards[piece_type + for_side], pinned_square)) {
+                printf("%d\n", pinned_piece_type + for_side);
+                pinned_piece_type = piece_type;
+            }
         }
+        if (pinned_piece_type != -1) {
+            // occupancy without the pinned piece
+            temp_occupancy = occupancy[all];
+            pop_bit(temp_occupancy, pinned_square);
 
-        // get attacked squares by rooks
-        while (rookQueens) {
-            pinner_square = get_ls1b_index(rookQueens);
-            opp_rook_attack_rays |= get_rook_attacks(pinner_square, temp_occupancy);
-            set_bit(opp_rook_attack_rays, pinner_square);
-            pop_bit(rookQueens, pinner_square);
-        }
+            // get attacked squares by bishops
+            while (bishopQueens) {
+                pinner_square = get_ls1b_index(bishopQueens);
+                opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, temp_occupancy);
+                set_bit(opp_bishop_attack_rays, pinner_square);
+                pop_bit(bishopQueens, pinner_square);
+            }
 
-        // get rays from pinned piece
-        pinned_bishop_rays = get_bishop_attacks(pinned_square, occupancy[all]);
-        // get rays from pinned piece
-        pinned_rook_rays = get_rook_attacks(pinned_square, occupancy[all]);
+            // get attacked squares by rooks
+            while (rookQueens) {
+                pinner_square = get_ls1b_index(rookQueens);
+                opp_rook_attack_rays |= get_rook_attacks(pinner_square, temp_occupancy);
+                set_bit(opp_rook_attack_rays, pinner_square);
+                pop_bit(rookQueens, pinner_square);
+            }
 
-        // bishop / queen
-        if (pinned_piece_type == bishop || pinned_piece_type == queen) {
-            // get target squares along pinned diagonal
-            target_squares |= opp_bishop_attack_rays & pinned_bishop_rays & ~occupancy[for_side];
-        }
-            // pawn captures
-        else {
-            target_squares |= opp_bishop_attack_rays & occupancy[!for_side] & pawn_attacks[for_side][pinned_square];
-            // en passant
-            if (ep_bb & opp_bishop_attack_rays & pawn_attacks[for_side][pinned_square]) {
-                target_square = get_ls1b_index(ep_bb);
-                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 1, 0);
+            // get rays from pinned piece
+            pinned_bishop_rays = get_bishop_attacks(pinned_square, occupancy[all]);
+            // get rays from pinned piece
+            pinned_rook_rays = get_rook_attacks(pinned_square, occupancy[all]);
+
+            // bishop / queen
+            if (pinned_piece_type == bishop || pinned_piece_type == queen) {
+                // get target squares along pinned diagonal
+                target_squares |= opp_bishop_attack_rays & pinned_bishop_rays & ~occupancy[for_side];
+            }
+                // pawn captures
+            else {
+                target_squares |= opp_bishop_attack_rays & occupancy[!for_side] & pawn_attacks[for_side][pinned_square];
+                // en passant
+                if (ep_bb & opp_bishop_attack_rays & pawn_attacks[for_side][pinned_square]) {
+                    target_square = get_ls1b_index(ep_bb);
+                    move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 1, 0);
+                    moves.push_back(move);
+                }
+            }
+            // rook / queen
+            if (pinned_piece_type == rook || pinned_piece_type == queen) {
+                // get target squares along pinned diagonal
+                target_squares |= opp_rook_attack_rays & pinned_rook_rays & ~occupancy[for_side];
+            }
+                // pawn pushes
+            else {
+                // calculate pawn push bitboards
+                U64 empty = ~occupancy[all];
+                U64 single_pawn_pushes = mask_single_pawn_pushes(for_side, piece_bitboards[pawn + for_side], empty);
+                U64 double_pawn_pushes = mask_double_pawn_pushes(for_side, single_pawn_pushes, empty);
+
+                // add to target squares
+                target_squares |= opp_rook_attack_rays & single_pawn_pushes;
+                target_squares |= opp_rook_attack_rays & double_pawn_pushes;
+            }
+            // loop through target squares and encode in moves
+
+            captures = target_squares & occupancy[!for_side];
+            target_squares = target_squares & ~occupancy[!for_side];
+            while (target_squares) {
+                // get and pop target square
+                target_square = get_ls1b_index(target_squares);
+                pop_bit(target_squares, target_square);
+
+                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 0, 0, 0, 0);
+                moves.push_back(move);
+            }
+            while (captures) {
+                // get and pop target square
+                target_square = get_ls1b_index(captures);
+                pop_bit(captures, target_square);
+
+                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 0, 0);
                 moves.push_back(move);
             }
         }
-        // rook / queen
-        if (pinned_piece_type == rook || pinned_piece_type == queen) {
-            // get target squares along pinned diagonal
-            target_squares |= opp_rook_attack_rays & pinned_rook_rays & ~occupancy[for_side];
-        }
-            // pawn pushes
-        else {
-            // calculate pawn push bitboards
-            U64 empty = ~occupancy[all];
-            U64 single_pawn_pushes = mask_single_pawn_pushes(for_side, piece_bitboards[pawn + for_side], empty);
-            U64 double_pawn_pushes = mask_double_pawn_pushes(for_side, single_pawn_pushes, empty);
-
-            // add to target squares
-            target_squares |= opp_rook_attack_rays & single_pawn_pushes;
-            target_squares |= opp_rook_attack_rays & double_pawn_pushes;
-        }
-        // loop through target squares and encode in moves
-
-        captures = target_squares & occupancy[!for_side];
-        target_squares = target_squares & ~occupancy[!for_side];
-        while (target_squares) {
-            // get and pop target square
-            target_square = get_ls1b_index(target_squares);
-            pop_bit(target_squares, target_square);
-
-            move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 0, 0, 0, 0);
-            moves.push_back(move);
-        }
-        while (captures) {
-            // get and pop target square
-            target_square = get_ls1b_index(captures);
-            pop_bit(captures, target_square);
-
-            move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 0, 0);
-            moves.push_back(move);
-        }
     }
-
     return moves;
 }
 
@@ -816,7 +814,6 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     // calculate pinned pieces
     U64 pinned_pieces = get_pinned_pieces(source_square, for_side, opp_sliding_pieces, occupancy_bitboards);
     U64 non_pinned_pieces = occupancy_bitboards[for_side] & ~pinned_pieces;
-
     std::vector<int> moves = get_pinned_moves(for_side, opp_sliding_pieces, piece_bitboards, occupancy_bitboards,
                                               pinned_pieces, ep_bb);
     legal_moves.insert(legal_moves.end(), moves.begin(), moves.end());
