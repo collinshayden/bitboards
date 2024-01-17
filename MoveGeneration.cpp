@@ -560,8 +560,8 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
     // get attacked squares by bishops
     while (bishopQueens) {
         from_square = get_ls1b_index(bishopQueens);
-        // if the bishop/queen is not on the same file as the king
-        if (from_square % 8 != king_square % 8) {
+        // if the bishop/queen is on the same diagonal as the king
+        if ((from_square - king_square) % 9 == 0 || (from_square - king_square) % 7 == 0) {
             // calculate rays
             opp_bishop_attack_rays |= get_bishop_attacks(from_square, 0ULL) & get_bishop_attacks(king_square, 0ULL);
         }
@@ -587,6 +587,7 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
     // save pieces pinned by rooks
     pinned |= opp_rook_attack_rays & king_rays & occupancy[for_side];
 
+    print_bitboard(pinned);
     return pinned;
 
 }
@@ -599,7 +600,7 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 /// \param pinned
 /// \return
 std::vector<int>
-get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12], const U64 occupancy[3],
+get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12], const U64 occupancy[3],
                  U64 pinned_pieces, U64 ep_bb) {
     U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned_bishop_rays, pinned_rook_rays, temp_occupancy, target_squares = 0ULL, captures = 0ULL;
     U64 bishopQueens = opp_slider_pieces[0];
@@ -612,11 +613,15 @@ get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_b
         pinned_piece_type = -1;
         pinned_square = get_ls1b_index(pinned_pieces);
         pop_bit(pinned_pieces, pinned_square);
+
+        // determine pinned piece type
         for (int piece_type: possibly_pinned_pieces) {
             if (get_bit(piece_bitboards[piece_type + for_side], pinned_square)) {
                 pinned_piece_type = piece_type;
             }
         }
+
+        // if it is a pawn/bishop/rook/queen
         if (pinned_piece_type != -1) {
             // occupancy without the pinned piece
             temp_occupancy = occupancy[all];
@@ -625,19 +630,25 @@ get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_b
             // get attacked squares by bishops
             while (bishopQueens) {
                 pinner_square = get_ls1b_index(bishopQueens);
-                opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, temp_occupancy);
+//                opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, temp_occupancy);
+                // if the bishop/queen is on the same diagonal as the king
+                if ((pinner_square - king_square) % 9 == 0 || (pinner_square - king_square) % 7 == 0) {
+                    // calculate rays
+                    opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, 0ULL) & get_bishop_attacks(king_square, 0ULL);
+                }
+
                 set_bit(opp_bishop_attack_rays, pinner_square);
                 pop_bit(bishopQueens, pinner_square);
             }
-
             // get attacked squares by rooks
             while (rookQueens) {
                 pinner_square = get_ls1b_index(rookQueens);
-                opp_rook_attack_rays |= get_rook_attacks(pinner_square, temp_occupancy);
+                if (pinner_square % 8 == king_square % 8 || pinner_square / 8 == king_square / 8) {
+                    opp_rook_attack_rays |= get_rook_attacks(pinner_square, temp_occupancy);
+                }
                 set_bit(opp_rook_attack_rays, pinner_square);
                 pop_bit(rookQueens, pinner_square);
             }
-
             // get rays from pinned piece
             pinned_bishop_rays = get_bishop_attacks(pinned_square, occupancy[all]);
             // get rays from pinned piece
@@ -728,9 +739,9 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         set_bit(ep_bb, ep_sq);
     U64 all_pawn_attacks = 0ULL;
 
-    printf("DEBUG\n\n");
     // king (this assumes only one king on board)
     source_square = get_ls1b_index(piece_bitboards[king + for_side]);
+    int king_square = source_square;
     // get king moves by table lookup, only save those that aren't attacked or occupied by friendly pieces
     U64 king_moves = king_attacks[source_square] & ~king_danger_bitboard & ~occupancy_bitboards[for_side];
     while (king_moves) {
@@ -748,8 +759,6 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         move = encode_move(source_square, target_square, (king + for_side), 0, capture, 0, 0, 0);
         legal_moves.push_back(move);
     }
-
-    printf("king moves: %zu\n", legal_moves.size());
 
     // if the number of attackers on the king is > 1, we are in double check.
     // The only legal moves to get out of double check are king moves, so we can exit early
@@ -838,11 +847,10 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
             }
         }
     }
-
     // calculate pinned pieces
     U64 pinned_pieces = get_pinned_pieces(source_square, for_side, opp_sliding_pieces, occupancy_bitboards);
     U64 non_pinned_pieces = occupancy_bitboards[for_side] & ~pinned_pieces;
-    std::vector<int> moves = get_pinned_moves(for_side, opp_sliding_pieces, piece_bitboards, occupancy_bitboards,
+    std::vector<int> moves = get_pinned_moves(king_square, for_side, opp_sliding_pieces, piece_bitboards, occupancy_bitboards,
                                               pinned_pieces, ep_bb);
     legal_moves.insert(legal_moves.end(), moves.begin(), moves.end());
     // moves for the rest of the pieces (non-king, non-pinned, while king not in check)
@@ -939,7 +947,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                 U64 target_bb = 0ULL;
                 set_bit(target_bb, target_square);
                 if (target_bb & (rank_1 | rank_8)) {
-                    for (int promote_type = 2 + for_side; promote_type < 10; promote_type++) {
+                    for (int promote_type = 2 + for_side; promote_type < 10; promote_type+=2) {
                         move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0,
                                            0);
                         legal_moves.push_back(move);

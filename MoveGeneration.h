@@ -130,7 +130,7 @@ U64 attacked_squares(const U64 occupancy_bitboards[3], const U64 piece_bitboards
 U64 get_pinned_pieces(int for_side, const U64 opp_slider_pieces[2], U64 occupancy[3]);
 
 std::vector<int>
-get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12],
+get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12],
                  const U64 occupancy[3], U64 pinned_pieces, U64 ep_bb);
 
 std::vector<int>
