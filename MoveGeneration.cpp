@@ -548,19 +548,24 @@ U64 opp_slider_rays_to_square(int from_square, int to_square, U64 occupancy) {
 /// get a bitboard of (absolutely) pinned pieces
 /// \param king_square
 /// \param opp_slider_pieces[2] bishopQueens, rookQueens
+/// \param occupancy[3] occupancy bitboards
 /// \return
 U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces[2], U64 occupancy[3]) {
     // init variables
-    U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned, king_rays = 0ULL;
+    U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned, king_rays;
     U64 bishopQueens = opp_slider_pieces[0];
     U64 rookQueens = opp_slider_pieces[1];
-    int square;
+    int from_square;
 
     // get attacked squares by bishops
     while (bishopQueens) {
-        square = get_ls1b_index(bishopQueens);
-        opp_bishop_attack_rays |= get_bishop_attacks(square, occupancy[all]);
-        pop_bit(bishopQueens, square);
+        from_square = get_ls1b_index(bishopQueens);
+        // if the bishop/queen is not on the same file as the king
+        if (from_square % 8 != king_square % 8) {
+            // calculate rays
+            opp_bishop_attack_rays |= get_bishop_attacks(from_square, 0ULL) & get_bishop_attacks(king_square, 0ULL);
+        }
+        pop_bit(bishopQueens, from_square);
     }
 
     // get bishop rays from king
@@ -571,9 +576,9 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 
     // get attacked squares by rooks
     while (rookQueens) {
-        square = get_ls1b_index(rookQueens);
-        opp_rook_attack_rays |= get_rook_attacks(square, occupancy[all]);
-        pop_bit(rookQueens, square);
+        from_square = get_ls1b_index(rookQueens);
+        opp_rook_attack_rays |= get_rook_attacks(from_square, occupancy[all]);
+        pop_bit(rookQueens, from_square);
     }
 
     // get rook rays from king
@@ -583,6 +588,7 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
     pinned |= opp_rook_attack_rays & king_rays & occupancy[for_side];
 
     return pinned;
+
 }
 
 /// get the legal moves of a pinned piece
@@ -608,7 +614,6 @@ get_pinned_moves(int for_side, const U64 opp_slider_pieces[2], const U64 piece_b
         pop_bit(pinned_pieces, pinned_square);
         for (int piece_type: possibly_pinned_pieces) {
             if (get_bit(piece_bitboards[piece_type + for_side], pinned_square)) {
-                printf("%d\n", pinned_piece_type + for_side);
                 pinned_piece_type = piece_type;
             }
         }
@@ -723,6 +728,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         set_bit(ep_bb, ep_sq);
     U64 all_pawn_attacks = 0ULL;
 
+    printf("DEBUG\n\n");
     // king (this assumes only one king on board)
     source_square = get_ls1b_index(piece_bitboards[king + for_side]);
     // get king moves by table lookup, only save those that aren't attacked or occupied by friendly pieces
@@ -743,6 +749,8 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         legal_moves.push_back(move);
     }
 
+    printf("king moves: %zu\n", legal_moves.size());
+
     // if the number of attackers on the king is > 1, we are in double check.
     // The only legal moves to get out of double check are king moves, so we can exit early
     int num_king_attackers = count_bits(king_attackers);
@@ -754,14 +762,15 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         // 2. Capture the checking piece
         // 3. Block the checking piece (if being checked by a rook, bishop or queen)
     else if (num_king_attackers == 1) {
-        capture_mask = king_attackers; // option 2, we can capture the checking piece
+        // option 2, we can capture the checking piece
+        // if en passant is possible, and we are in check, then the pawn must be checking us.
+        capture_mask = king_attackers | ep_bb;
         int attacker_square = get_ls1b_index(king_attackers);
 
         // if the checking piece is a slider
         if (get_bit((opp_sliding_pieces[0] | opp_sliding_pieces[1]), attacker_square)) {
             // option 3, we can block the checking piece
             push_mask = opp_slider_rays_to_square(attacker_square, source_square, occupancy_bitboards[all]);
-            print_bitboard(push_mask);
         }
             // if the checking piece is not a slider
         else {
