@@ -43,22 +43,58 @@ int tests() {
     moves = board.get_legal_moves();
     assert(moves.size() == 5);
 
+    // test five (rook pin with rook)
+    board.load_FEN("k7/8/8/8/q2R2K1/8/8/8 w - - 0 1");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 13);
+
+    // test six (bishop pin with bishop)
+    board.load_FEN("k7/8/5K2/8/3B4/8/1q6/8 w - - 0 1");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 11);
+
+    // test six (bishop pin with rook)
+    board.load_FEN("k7/8/5K2/8/3R4/8/1q6/8 w - - 0 1");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 8);
+
+    // test seven (general position)
+    board.load_FEN("2kr3r/p1ppqpb1/bn2Qnp1/3PN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQ - 3 2");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 44);
+
+    // test eight (promotion + other stuff)
+    board.load_FEN("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 39);
+
+    // test nine (pinned pawn)
+    board.load_FEN("2r5/3pk3/8/2P5/8/2K5/8/8 w - - 5 4");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 9);
+
+    // test ten (pinned pawn + illegal en passant)
+    board.load_FEN("2r5/4k3/8/2Pp4/8/2K5/8/8 w - d6 5 4");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 8);
+
     printf("Passed all tests.\n");
     return 0;
 }
 
 int main() {
-//    tests();
+    tests();
     fill_attack_tables();
     Board board;
 
-    board.load_FEN("r3k2r/p1pp1pb1/bn2Qnp1/2qPN3/1p2P3/2N5/PPPBBPPP/R3K2R b KQkq - 3 2");
+    board.load_FEN("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9");
 
     std::vector<int> moves = board.get_legal_moves();
     board.print_legal_moves(moves);
+    printf("# legal moves: %zu", moves.size());
 
     board.print_board();
 
-    printf("%d", b8 % 8);
+    printf("%d", h1 - g2);
     return 0;
 }
