@@ -587,7 +587,6 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
     // save pieces pinned by rooks
     pinned |= opp_rook_attack_rays & king_rays & occupancy[for_side];
 
-    print_bitboard(pinned);
     return pinned;
 
 }
@@ -602,7 +601,7 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 std::vector<int>
 get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12], const U64 occupancy[3],
                  U64 pinned_pieces, U64 ep_bb) {
-    U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned_bishop_rays, pinned_rook_rays, temp_occupancy, target_squares = 0ULL, captures = 0ULL;
+    U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned_bishop_rays, pinned_rook_rays, temp_occupancy, target_squares = 0ULL, captures;
     U64 bishopQueens = opp_slider_pieces[0];
     U64 rookQueens = opp_slider_pieces[1];
     std::vector<int> moves;
@@ -665,7 +664,7 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
                 // en passant
                 if (ep_bb & opp_bishop_attack_rays & pawn_attacks[for_side][pinned_square]) {
                     target_square = get_ls1b_index(ep_bb);
-                    move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 1, 0);
+                    move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 1, 0, !for_side);
                     moves.push_back(move);
                 }
             }
@@ -694,7 +693,7 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
                 target_square = get_ls1b_index(target_squares);
                 pop_bit(target_squares, target_square);
 
-                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 0, 0, 0, 0);
+                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 0, 0, 0, 0, -1);
                 moves.push_back(move);
             }
             while (captures) {
@@ -702,7 +701,15 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
                 target_square = get_ls1b_index(captures);
                 pop_bit(captures, target_square);
 
-                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 0, 0);
+                // get captured piece
+                int captured_piece = -1;
+                for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
+                    if (get_bit(piece_bitboards[piece_type], target_square)) {
+                        captured_piece = piece_type;
+                    }
+                }
+
+                move = encode_move(pinned_square, target_square, pinned_piece_type, 0, 1, 0, 0, 0, captured_piece);
                 moves.push_back(move);
             }
         }
@@ -721,7 +728,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                      int ep_sq) {
     // init variables
     std::vector<int> legal_moves = {};
-    int move, source_square, target_square, capture, promoted, en_passant;
+    int move, source_square, target_square, capture, promoted, en_passant, captured_piece = -1;
     U64 opp_sliding_pieces[2] = {(piece_bitboards[bishop + !for_side] | piece_bitboards[queen + !for_side]),
                                  (piece_bitboards[rook + !for_side] | piece_bitboards[queen + !for_side])};
     U64 friendly_sliding_pieces[2] = {(piece_bitboards[bishop + for_side] | piece_bitboards[queen + for_side]),
@@ -748,15 +755,18 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         // get target and pop
         target_square = get_ls1b_index(king_moves);
         pop_bit(king_moves, target_square);
-
-        // search through opposite color piece bitboards
-        for (int piece_type = !for_side; piece_type < 12; piece_type += 2) {
-            if (get_bit(piece_bitboards[piece_type], target_square)) {
-                capture = 1;
+        // if it is a capture
+        if (get_bit(occupancy_bitboards[!for_side], target_square)) {
+            // get captured piece
+            for (int piece_type = !for_side; piece_type < 12; piece_type += 2) {
+                if (get_bit(piece_bitboards[piece_type], target_square)) {
+                    capture = 1;
+                    captured_piece = piece_type;
+                }
             }
         }
 
-        move = encode_move(source_square, target_square, (king + for_side), 0, capture, 0, 0, 0);
+        move = encode_move(source_square, target_square, (king + for_side), 0, capture, 0, 0, 0, captured_piece);
         legal_moves.push_back(move);
     }
 
@@ -800,7 +810,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                     // if the squares that the king crosses are not attacked
                     if (!(castling_squares[0] & opp_attacked_squares)) {
                         // then castling kingside is legal
-                        move = encode_move(e1, g1, king, 0, 0, 0, 0, 1);
+                        move = encode_move(e1, g1, king, 0, 0, 0, 0, 1, -1);
                         legal_moves.push_back(move);
                     }
                 }
@@ -812,7 +822,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                     // if the squares that the king crosses are not attacked
                     if (!(queenside_occupancy[0] & opp_attacked_squares)) {
                         // then castling queenside is legal
-                        move = encode_move(e1, c1, king, 0, 0, 0, 0, 1);
+                        move = encode_move(e1, c1, king, 0, 0, 0, 0, 1, -1);
                         legal_moves.push_back(move);
                     }
                 }
@@ -828,7 +838,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                     // if the squares that the king crosses are not attacked
                     if (!(castling_squares[2] & opp_attacked_squares)) {
                         // then castling kingside is legal
-                        move = encode_move(e8, g8, king, 0, 0, 0, 0, 1);
+                        move = encode_move(e8, g8, king, 0, 0, 0, 0, 1, -1);
                         legal_moves.push_back(move);
                     }
                 }
@@ -840,7 +850,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                     // if the squares that the king crosses are not attacked
                     if (!(castling_squares[3] & opp_attacked_squares)) {
                         // then castling queenside is legal
-                        move = encode_move(e8, c8, king, 0, 0, 0, 0, 1);
+                        move = encode_move(e8, c8, king, 0, 0, 0, 0, 1, -1);
                         legal_moves.push_back(move);
                     }
                 }
@@ -874,11 +884,11 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         // promotion
         if (target_bb & (rank_1 | rank_8)) {
             for (int promote_type = 2 + for_side; promote_type < 10; promote_type += 2) {
-                move = encode_move(source_square, target_square, (pawn + for_side), promote_type, 0, 0, 0, 0);
+                move = encode_move(source_square, target_square, (pawn + for_side), promote_type, 0, 0, 0, 0, -1);
                 legal_moves.push_back(move);
             }
         } else {
-            move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 0, 0, 0);
+            move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 0, 0, 0, -1);
             legal_moves.push_back(move);
         }
 
@@ -890,7 +900,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         source_square = for_side ? target_square - 16 : target_square + 16;
         pop_bit(double_pawn_pushes, target_square);
 
-        move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 1, 0, 0);
+        move = encode_move(source_square, target_square, (pawn + for_side), 0, 0, 1, 0, 0, -1);
         legal_moves.push_back(move);
     }
 
@@ -907,7 +917,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         if (ep_bb & attacks & capture_mask) {
             // get square of opp pawn being captured
             target_square = for_side ? ep_sq - 8 : ep_sq + 8;
-            int king_square = get_ls1b_index(piece_bitboards[king + for_side]);
+            king_square = get_ls1b_index(piece_bitboards[king + for_side]);
 
             // remove both pawns involved from the board
             pop_bit(piece_bitboards[pawn + for_side], source_square);
@@ -919,7 +929,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
             bool king_in_check = is_attacked(piece_bitboards, *occupancy_bitboards, king_square, !for_side);
             // if not, en passant is legal
             if (!king_in_check) {
-                move = encode_move(source_square, ep_sq, (pawn + for_side), 0, 1, 0, 1, 0);
+                move = encode_move(source_square, ep_sq, (pawn + for_side), 0, 1, 0, 1, 0, !for_side);
                 legal_moves.push_back(move);
             }
 
@@ -941,20 +951,27 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
             // get capture
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
+            captured_piece = -1;
             if (capture) {
                 // save move
                 // promotion
                 U64 target_bb = 0ULL;
                 set_bit(target_bb, target_square);
+                for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
+                    if (get_bit(piece_bitboards[piece_type], target_square)) {
+                        captured_piece = piece_type;
+                    }
+                }
+
                 if (target_bb & (rank_1 | rank_8)) {
                     for (int promote_type = 2 + for_side; promote_type < 10; promote_type+=2) {
                         move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0,
-                                           0);
+                                           0, captured_piece);
                         legal_moves.push_back(move);
                     }
                 }// if not promotion
                 else {
-                    move = encode_move(source_square, target_square, (pawn + for_side), 0, capture, 0, 0, 0);
+                    move = encode_move(source_square, target_square, (pawn + for_side), 0, capture, 0, 0, 0, captured_piece);
                     legal_moves.push_back(move);
                 }
             }
@@ -979,9 +996,16 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
             // get capture
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
-
+            captured_piece = -1;
+            if (capture) {
+                for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
+                    if (get_bit(piece_bitboards[piece_type], target_square)) {
+                        captured_piece = piece_type;
+                    }
+                }
+            }
             // save move
-            move = encode_move(source_square, target_square, (knight + for_side), 0, capture, 0, 0, 0);
+            move = encode_move(source_square, target_square, (knight + for_side), 0, capture, 0, 0, 0, captured_piece);
             legal_moves.push_back(move);
 
         }
@@ -1008,12 +1032,21 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
             // get capture
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
+            captured_piece = -1;
+            if (capture) {
+                for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
+                    if (get_bit(piece_bitboards[piece_type], target_square)) {
+                        captured_piece = piece_type;
+                    }
+                }
+            }
 
             // get piece (bishop or queen)
             int piece = get_bit(piece_bitboards[bishop + for_side], source_square) ? bishop : queen;
 
             // save move
-            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
+            // TODO piece should be piece + for_side
+            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0, captured_piece);
             legal_moves.push_back(move);
         }
     }
@@ -1038,12 +1071,20 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
 
             // get capture
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
+            captured_piece = -1;
+            if (capture) {
+                for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
+                    if (get_bit(piece_bitboards[piece_type], target_square)) {
+                        captured_piece = piece_type;
+                    }
+                }
+            }
 
             // get piece (rook or queen)
             int piece = get_bit(piece_bitboards[rook + for_side], source_square) ? rook : queen;
 
             // save move
-            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0);
+            move = encode_move(source_square, target_square, piece, 0, capture, 0, 0, 0, captured_piece);
             legal_moves.push_back(move);
         }
     }

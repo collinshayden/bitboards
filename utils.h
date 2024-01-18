@@ -90,18 +90,20 @@ const U64 rank_8 = 0x00000000000000ff;
 /*
           binary move bits                               hexidecimal constants
 
-    0000 0000 0000 0000 0011 1111    source square       0x3f
-    0000 0000 0000 1111 1100 0000    target square       0xfc0
-    0000 0000 1111 0000 0000 0000    piece               0xf000
-    0000 1111 0000 0000 0000 0000    promoted piece      0xf0000
-    0001 0000 0000 0000 0000 0000    capture flag        0x100000
-    0010 0000 0000 0000 0000 0000    double push flag    0x200000
-    0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
-    1000 0000 0000 0000 0000 0000    castling flag       0x800000
+    0000 0000 0000 0000 0000 0011 1111    source square       0x3f
+    0000 0000 0000 0000 1111 1100 0000    target square       0xfc0
+    0000 0000 0000 1111 0000 0000 0000    piece               0xf000
+    0000 0000 1111 0000 0000 0000 0000    promoted piece      0xf0000
+    0000 0001 0000 0000 0000 0000 0000    capture flag        0x100000
+    0000 0010 0000 0000 0000 0000 0000    double push flag    0x200000
+    0000 0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
+    0000 1000 0000 0000 0000 0000 0000    castling flag       0x800000
+    1111 0000 0000 0000 0000 0000 0000    captured piece      0xF00000
+
 */
 
 // encode move
-#define encode_move(source, target, piece, promoted, capture, double_push, enpassant, castling) \
+#define encode_move(source, target, piece, promoted, capture, double_push, enpassant, castling, captured_piece) \
  ((source) |             \
  (target << 6) |         \
  (piece << 12) |         \
@@ -109,8 +111,8 @@ const U64 rank_8 = 0x00000000000000ff;
  (capture << 20) |       \
  (double_push << 21) |   \
  (enpassant << 22) |     \
- (castling << 23))     \
-
+ (castling << 23)) |     \
+ (captured_piece << 27)  \
 // extract source square
 #define get_move_source(move) (move & 0x3f)
 
@@ -134,6 +136,9 @@ const U64 rank_8 = 0x00000000000000ff;
 
 // extract castling
 #define get_move_castling(move) ((move & 0x800000) >> 23)
+
+// extract captured piece
+#define get_move_captured_piece(move) ((move & 0xF00000) >> 27)
 
 void print_bitboard(U64 bitboard);
 
