@@ -5,6 +5,7 @@
 #include "Board.h"
 #include "MoveGeneration.h"
 
+/// function to print board with unicode chars
 void Board::print_board() {
     printf("\n");
     for (int rank = 0; rank < 8; rank++) {
@@ -31,6 +32,8 @@ void Board::print_board() {
            ((castling_rights & bk) ? 'k' : '-'), ((castling_rights & bq) ? 'q' : '-'));
 }
 
+/// update board state from move
+/// \param move
 void Board::makeMove(int move) {
     // extract move data
     int source_square = get_move_source(move);
@@ -42,6 +45,13 @@ void Board::makeMove(int move) {
     int en_passant = get_move_enpassant(move);
     int castling = get_move_castling(move);
     U64 source_target = (1ULL << source_square) | (1ULL << target_square); // bb of both source and target squares
+
+    // save irreversible aspects of the position to history stacks
+    en_passant_history.push(enpassant_sq);
+    half_move_history.push(half_move);
+    castling_rights_history.push(castling_rights);
+
+
 
     // if promoted, put promoted piece in respective bitboard, else put piece on target square
     if (promoted) {
@@ -85,25 +95,18 @@ void Board::makeMove(int move) {
         // if the move is a double push, set en passant square
     else if (double_push) {
         int ep_sq = side_to_move ? source_square + 8 : source_square - 8;
-        en_passant_history.push(ep_sq);
         enpassant_sq = ep_sq;
     } else {
         // if not double push, set enpassant_sq to no_sq
-        en_passant_history.push(no_sq);
         enpassant_sq = no_sq;
     }
 
     // if not capture or pawn push, increment half move counter
     if (!capture && piece != side_to_move) {
-        half_move_history.push(half_move);
         half_move++;
     } else {
-        half_move_history.push(half_move);
         half_move = 0;
     }
-
-    // save castling rights
-    castling_rights_history.push(castling_rights);
 
     // update castling rights
     // if white has kingside castling rights and if source square or target square is e1 or h1, white loses kingside castling rights
@@ -140,34 +143,35 @@ void Board::makeMove(int move) {
     side_to_move = !side_to_move;
 }
 
+/// undo move in board state
+/// \param move
 void Board::undoMove(int move) {
     int source_square = get_move_source(move);
     int target_square = get_move_target(move);
     int piece = get_move_piece(move);
     int capture = get_move_capture(move);
     int promoted = get_move_promoted(move);
-    int double_push = get_move_double_push(move);
     int en_passant = get_move_enpassant(move);
     int castling = get_move_castling(move);
 
+    side_to_move = !side_to_move;
 
-    // if promotion
+    // undo promotion
     if (promoted) {
         pop_bit(piece_bitboards[promoted], target_square);
-        // if promoted, put promoted piece in respective bitboard, else put piece on target square
     } else {
         pop_bit(piece_bitboards[piece], target_square);
     }
 
-    // if captured, remove it from the respective bitboard
+    // undo captures
     if (capture) {
         int captured_piece = get_move_captured_piece(move);
-        // if the move is an en passant capture, remove the captured piece from correct square
+        // undo en passant
         if (en_passant) {
             int ep_sq = side_to_move ? target_square + 8 : target_square - 8;
             set_bit(piece_bitboards[!side_to_move], ep_sq);
         }
-            // if not en passant, remove piece from expected target square
+            // if not en passant, put piece back on expected target square
         else {
             set_bit(piece_bitboards[captured_piece], target_square);
         }
@@ -178,63 +182,54 @@ void Board::undoMove(int move) {
             // XOR masks stay the same, and will undo the castling move
             piece_bitboards[rook] ^= 0xa000000000000000;
             piece_bitboards[king] ^= 0x5000000000000000;
-            // get top element from castling_rights_history, then pop
-            castling_rights = castling_rights_history.top();
-            castling_rights_history.pop();
-
         } else if (target_square == c1) {
             piece_bitboards[rook] ^= 0x900000000000000;
             piece_bitboards[king] ^= 0x1400000000000000;
-            // get top element from castling_rights_history, then pop
-            castling_rights = castling_rights_history.top();
-            castling_rights_history.pop();
         } else if (target_square == g8) {
             piece_bitboards[rook + 1] ^= 0xa0;
             piece_bitboards[king + 1] ^= 0x50;
-            // get top element from castling_rights_history, then pop
-            castling_rights = castling_rights_history.top();
-            castling_rights_history.pop();
         } else if (target_square == c8) {
             piece_bitboards[rook + 1] ^= 0x9;
             piece_bitboards[king + 1] ^= 0x14;
-            // get top element from castling_rights_history, then pop
-            castling_rights = castling_rights_history.top();
-            castling_rights_history.pop();
         }
     }
 
-
-    // remove from piece bitboard
-    pop_bit(piece_bitboards[piece], source_square);
+    // add back to piece bitboard
+    set_bit(piece_bitboards[piece], source_square);
 
     // update occupancies
-    set_bit(occupancy_bitboards[side_to_move], target_square);
-    set_bit(occupancy_bitboards[all], target_square);
-    pop_bit(occupancy_bitboards[side_to_move], source_square);
-    pop_bit(occupancy_bitboards[all], source_square);
+    pop_bit(occupancy_bitboards[side_to_move], target_square);
+    pop_bit(occupancy_bitboards[all], target_square);
+    set_bit(occupancy_bitboards[side_to_move], source_square);
+    set_bit(occupancy_bitboards[all], source_square);
 
     // if it is the end of black's turn, decrement full move counter
-    if (!side_to_move) {
+    if (side_to_move) {
         full_move--;
     }
-    // TODO fix?
-    // if the move is a double push, set en passant square
+
+    // restore irreversible aspects of position from history stacks
     enpassant_sq = en_passant_history.top();
     en_passant_history.pop();
 
     half_move = half_move_history.top();
     half_move_history.pop();
 
-    side_to_move = !side_to_move;
+    castling_rights = castling_rights_history.top();
+    castling_rights_history.pop();
 
 }
 
+/// get legal moves of current position
+/// \return vector of legal moves
 std::vector<int> Board::get_legal_moves() {
     std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side_to_move,
                                                         castling_rights, enpassant_sq);
     return legal_moves;
 }
 
+/// print legal moves
+/// \param legal_moves
 void Board::print_legal_moves(const std::vector<int> &legal_moves) {
     for (int move: legal_moves) {
         if (get_move_promoted(move)) {
