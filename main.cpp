@@ -3,6 +3,7 @@
 //
 #include "Board.h"
 #include "MoveGeneration.h"
+#include "iostream"
 
 // reference https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9
 int tests() {
@@ -92,19 +93,20 @@ int main() {
 
     board.load_FEN("r1bqkb1r/2pp1ppp/p1n2n2/1p2p3/4P3/1B3N2/PPPP1PPP/RNBQK2R w KQkq - 0 1");
 
-    std::vector<int> moves = board.get_legal_moves();
-    board.print_legal_moves(moves);
-    printf("# legal moves: %zu\n", moves.size());
 
-    board.print_board();
 
-    board.makeMove(moves.at(2));
+    while (true) {
+        std::vector<int> moves = board.get_legal_moves();
+        board.print_legal_moves(moves);
+        printf("# legal moves: %zu\n", moves.size());
+        board.print_board();
 
-    board.print_board();
+        printf("Select a legal move: ");
+        int num;
+        std::cin >> num;
 
-    board.undoMove(moves.at(2));
-
-    board.print_board();
+        board.makeMove(moves.at(num-1));
+    }
 
     return 0;
 }

@@ -229,15 +229,17 @@ std::vector<int> Board::get_legal_moves() {
 /// print legal moves
 /// \param legal_moves
 void Board::print_legal_moves(const std::vector<int> &legal_moves) {
+    int num = 1;
     for (int move: legal_moves) {
         if (get_move_promoted(move)) {
-            printf("%s%s=%d capture: %d\n", square_to_cord[get_move_source(move)],
+            printf("%d. %s%s=%d capture: %d\n", num, square_to_cord[get_move_source(move)],
                    square_to_cord[get_move_target(move)], get_move_promoted(move), get_move_capture(move));
         } else {
-            printf("%s%s capture: %d castling: %d en passant: %d\n", square_to_cord[get_move_source(move)],
+            printf("%d. %s%s capture: %d castling: %d en passant: %d\n", num, square_to_cord[get_move_source(move)],
                    square_to_cord[get_move_target(move)], get_move_capture(move), get_move_castling(move),
                    get_move_enpassant(move));
         }
+        num++;
     }
 }
 
