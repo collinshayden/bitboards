@@ -26,12 +26,13 @@ void Board::print_board() {
     }
     printf("\n    a b c d e f g h\n");
     printf("\n    Side: %s", (side_to_move ? "black" : "white"));
-    printf("\n    Enpass: %s", (enpassant != no_sq) ? square_to_cord[enpassant] : "no");
+    printf("\n    Enpass: %s", (enpassant_sq != no_sq) ? square_to_cord[enpassant_sq] : "no");
     printf("\n    Castling: %c%c%c%c\n\n", ((castling_rights & wk) ? 'K' : '-'), ((castling_rights & wq) ? 'Q' : '-'),
            ((castling_rights & bk) ? 'k' : '-'), ((castling_rights & bq) ? 'q' : '-'));
 }
 
 void Board::makeMove(int move) {
+    // extract move data
     int source_square = get_move_source(move);
     int target_square = get_move_target(move);
     int piece = get_move_piece(move);
@@ -41,18 +42,68 @@ void Board::makeMove(int move) {
     int en_passant = get_move_enpassant(move);
     int castling = get_move_castling(move);
 
-    // if captured, figure out what piece was captured and remove it from the respective bitboard
+    // if promotion
+    if (promoted) {
+        set_bit(piece_bitboards[promoted], target_square);
+        // if promoted, put promoted piece in respective bitboard, else put piece on target square
+    } else {
+        set_bit(piece_bitboards[piece], target_square);
+    }
+
+    // if captured, remove it from the respective bitboard
     if (capture) {
-        for (int piece_type = 0; piece_type < 12; piece_type++) {
-            if (get_bit(piece_bitboards[piece_type], target_square)) {
-                pop_bit(piece_bitboards[piece_type], target_square);
-            }
+        int captured_piece = get_move_captured_piece(move);
+        // if the move is an en passant capture, remove the captured piece from correct square
+        if (en_passant) {
+            int ep_sq = side_to_move ? target_square + 8 : target_square - 8;
+            pop_bit(piece_bitboards[!side_to_move], ep_sq);
+        }
+            // if not en passant, remove piece from expected target square
+        else {
+            pop_bit(piece_bitboards[captured_piece], target_square);
         }
     }
-    // if promoted, put promoted piece in respective bitboard, else put piece on target square
-    if (promoted) set_bit(piece_bitboards[promoted], target_square);
-    else
-        set_bit(piece_bitboards[piece], target_square);
+        // castling
+    else if (castling) {
+        if (target_square == g1) {
+            // XOR masks
+            // XOR piece bitboards with rooks on h1 and f1, XOR will delete rook on h1, and add rook on f1. Leaves other rooks alone
+            // same idea for kings
+            piece_bitboards[rook] ^= 0xa000000000000000;
+            piece_bitboards[king] ^= 0x5000000000000000;
+            castling_rights_history.push(castling_rights);
+            castling_rights &= ~wk & ~wq;
+        } else if (target_square == c1) {
+            piece_bitboards[rook] ^= 0x900000000000000;
+            piece_bitboards[king] ^= 0x1400000000000000;
+            castling_rights_history.push(castling_rights);
+            castling_rights &= ~wk & ~wq;
+        } else if (target_square == g8) {
+            piece_bitboards[rook + 1] ^= 0xa0;
+            piece_bitboards[king + 1] ^= 0x50;
+            castling_rights_history.push(castling_rights);
+            castling_rights &= ~bk & ~bq;
+        } else if (target_square == c8) {
+            piece_bitboards[rook + 1] ^= 0x9;
+            piece_bitboards[king + 1] ^= 0x14;
+            castling_rights_history.push(castling_rights);
+            castling_rights &= ~bk & ~bq;
+        }
+    }
+    // if the move is a double push, set en passant square
+    else if (double_push) {
+        int ep_sq = side_to_move ? source_square + 8 : source_square - 8;
+        en_passant_history.push(ep_sq);
+        enpassant_sq = ep_sq;
+    }
+        // if not capture
+    else {
+        // if not pawn push, increment half move counter
+        if (piece != side_to_move) {
+            half_move_history.push(half_move);
+            half_move++;
+        }
+    }
 
     // remove from piece bitboard
     pop_bit(piece_bitboards[piece], source_square);
@@ -62,6 +113,13 @@ void Board::makeMove(int move) {
     set_bit(occupancy_bitboards[all], target_square);
     pop_bit(occupancy_bitboards[side_to_move], source_square);
     pop_bit(occupancy_bitboards[all], source_square);
+
+    // if it is the end of black's turn, increment full move counter
+    if (side_to_move) {
+        full_move++;
+    }
+
+    side_to_move = !side_to_move;
 }
 
 void Board::undoMove(int move) {
@@ -99,7 +157,7 @@ void Board::undoMove(int move) {
 
 std::vector<int> Board::get_legal_moves() {
     std::vector<int> legal_moves = generate_legal_moves(occupancy_bitboards, piece_bitboards, side_to_move,
-                                                        castling_rights, enpassant);
+                                                        castling_rights, enpassant_sq);
     return legal_moves;
 }
 
@@ -109,17 +167,17 @@ void Board::print_legal_moves(const std::vector<int> &legal_moves) {
             printf("%s%s=%d capture: %d\n", square_to_cord[get_move_source(move)],
                    square_to_cord[get_move_target(move)], get_move_promoted(move), get_move_capture(move));
         } else {
-            printf("%s%s capture: %d castling: %d en passant: %d\n", square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)],
-                   get_move_capture(move), get_move_castling(move), get_move_enpassant(move));
+            printf("%s%s capture: %d castling: %d en passant: %d\n", square_to_cord[get_move_source(move)],
+                   square_to_cord[get_move_target(move)], get_move_capture(move), get_move_castling(move),
+                   get_move_enpassant(move));
         }
     }
 }
 
 
-
 /// load board position from FEN position
 /// \param FEN
-void Board::load_FEN(const std::string& FEN) {
+void Board::load_FEN(const std::string &FEN) {
     // init vars
     int pos = 0, square = 0, piece_type;
 
@@ -167,11 +225,11 @@ void Board::load_FEN(const std::string& FEN) {
 
     // set en passant square
     if (en_passant[0] == '-') {
-        enpassant = no_sq;
+        enpassant_sq = no_sq;
     } else {
         int file = en_passant[0] - 'a';
         int rank = en_passant[1] - '0';
-        enpassant = (8 - rank) * 8 + file;
+        enpassant_sq = (8 - rank) * 8 + file;
     }
 
     // set half and full move
