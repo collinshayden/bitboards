@@ -51,15 +51,6 @@ void Board::makeMove(int move) {
     half_move_history.push(half_move);
     castling_rights_history.push(castling_rights);
 
-
-
-    // if promoted, put promoted piece in respective bitboard, else put piece on target square
-    if (promoted) {
-        set_bit(piece_bitboards[promoted], target_square);
-    } else {
-        set_bit(piece_bitboards[piece], target_square);
-    }
-
     // if captured, remove it from the respective bitboard
     if (capture) {
         int captured_piece = get_move_captured_piece(move);
@@ -99,6 +90,13 @@ void Board::makeMove(int move) {
     } else {
         // if not double push, set enpassant_sq to no_sq
         enpassant_sq = no_sq;
+    }
+
+    // if promoted, put promoted piece in respective bitboard, else put piece on target square
+    if (promoted) {
+        set_bit(piece_bitboards[promoted], target_square);
+    } else {
+        set_bit(piece_bitboards[piece], target_square);
     }
 
     // if not capture or pawn push, increment half move counter
@@ -156,13 +154,6 @@ void Board::undoMove(int move) {
 
     side_to_move = !side_to_move;
 
-    // undo promotion
-    if (promoted) {
-        pop_bit(piece_bitboards[promoted], target_square);
-    } else {
-        pop_bit(piece_bitboards[piece], target_square);
-    }
-
     // undo captures
     if (capture) {
         int captured_piece = get_move_captured_piece(move);
@@ -176,7 +167,7 @@ void Board::undoMove(int move) {
             set_bit(piece_bitboards[captured_piece], target_square);
         }
     }
-        // castling
+        // undo castling
     else if (castling) {
         if (target_square == g1) {
             // XOR masks stay the same, and will undo the castling move
@@ -192,6 +183,13 @@ void Board::undoMove(int move) {
             piece_bitboards[rook + 1] ^= 0x9;
             piece_bitboards[king + 1] ^= 0x14;
         }
+    }
+
+    // undo promotion
+    if (promoted) {
+        pop_bit(piece_bitboards[promoted], target_square);
+    } else {
+        pop_bit(piece_bitboards[piece], target_square);
     }
 
     // add back to piece bitboard

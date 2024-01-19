@@ -4,20 +4,6 @@
 #include "Board.h"
 #include "MoveGeneration.h"
 
-
-U64 perft(int depth, Board &board) {
-    U64 nodes = 0ULL;
-
-    if (depth == 0) {
-        return 1ULL;
-    }
-
-    std::vector<int> legal_moves = board.get_legal_moves();
-    for (int move : legal_moves) {
-
-    }
-}
-
 // reference https://gist.github.com/peterellisjones/8c46c28141c162d1d8a0f0badbc9cff9
 int tests() {
     fill_attack_tables();
@@ -78,8 +64,25 @@ int tests() {
     moves = board.get_legal_moves();
     assert(moves.size() == 8);
 
+    // test eleven (x ray illegal en passant)
+    board.load_FEN("7k/8/8/q2Pp2K/8/8/8/8 w - e6 0 1");
+    moves = board.get_legal_moves();
+    assert(moves.size() == 6);
+
     printf("Passed all tests.\n");
     return 0;
+}
+
+U64 perft(int depth, int &nodes, Board &board) {
+    if (depth == 0) {
+        return 1ULL;
+    }
+
+    std::vector<int> legal_moves = board.get_legal_moves();
+    nodes += legal_moves.size();
+    for (int move : legal_moves) {
+
+    }
 }
 
 int main() {
@@ -87,14 +90,21 @@ int main() {
     fill_attack_tables();
     Board board;
 
-    board.load_FEN("rnb2k1r/pp1Pbppp/2p5/q7/2B5/8/PPPQNnPP/RNB1K2R w KQ - 3 9");
+    board.load_FEN("r1bqkb1r/2pp1ppp/p1n2n2/1p2p3/4P3/1B3N2/PPPP1PPP/RNBQK2R w KQkq - 0 1");
 
     std::vector<int> moves = board.get_legal_moves();
     board.print_legal_moves(moves);
-    printf("# legal moves: %zu", moves.size());
+    printf("# legal moves: %zu\n", moves.size());
 
     board.print_board();
 
-    printf("%d", h1 - g2);
+    board.makeMove(moves.at(2));
+
+    board.print_board();
+
+    board.undoMove(moves.at(2));
+
+    board.print_board();
+
     return 0;
 }
