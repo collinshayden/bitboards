@@ -538,7 +538,7 @@ U64 opp_slider_rays_to_square(int from_square, int to_square, U64 occupancy) {
     if (from_square % 8 == to_square % 8) {
         rays |= get_rook_attacks(from_square, occupancy) & get_rook_attacks(to_square, occupancy);
     }
-    // if not on same file, use bishop attacks
+        // if not on same file, use bishop attacks
     else {
         rays |= get_bishop_attacks(from_square, occupancy) & get_bishop_attacks(to_square, occupancy);
     }
@@ -599,8 +599,8 @@ U64 get_pinned_pieces(int king_square, int for_side, const U64 opp_slider_pieces
 /// \param pinned
 /// \return
 std::vector<int>
-get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12], const U64 occupancy[3],
-                 U64 pinned_pieces, U64 ep_bb) {
+get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], const U64 piece_bitboards[12],
+                 const U64 occupancy[3], U64 pinned_pieces, U64 ep_bb) {
     U64 opp_bishop_attack_rays = 0ULL, opp_rook_attack_rays = 0ULL, pinned_bishop_rays, pinned_rook_rays, temp_occupancy, target_squares = 0ULL, captures;
     U64 bishopQueens = opp_slider_pieces[0];
     U64 rookQueens = opp_slider_pieces[1];
@@ -633,7 +633,8 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
                 // if the bishop/queen is on the same diagonal as the king
                 if ((pinner_square - king_square) % 9 == 0 || (pinner_square - king_square) % 7 == 0) {
                     // calculate rays
-                    opp_bishop_attack_rays |= get_bishop_attacks(pinner_square, 0ULL) & get_bishop_attacks(king_square, 0ULL);
+                    opp_bishop_attack_rays |=
+                            get_bishop_attacks(pinner_square, 0ULL) & get_bishop_attacks(king_square, 0ULL);
                 }
 
                 set_bit(opp_bishop_attack_rays, pinner_square);
@@ -709,7 +710,8 @@ get_pinned_moves(int king_square, int for_side, const U64 opp_slider_pieces[2], 
                     }
                 }
 
-                move = encode_move(pinned_square, target_square, (pinned_piece_type + for_side), 0, 1, 0, 0, 0, captured_piece);
+                move = encode_move(pinned_square, target_square, (pinned_piece_type + for_side), 0, 1, 0, 0, 0,
+                                   captured_piece);
                 moves.push_back(move);
             }
         }
@@ -732,7 +734,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     U64 opp_sliding_pieces[2] = {(piece_bitboards[bishop + !for_side] | piece_bitboards[queen + !for_side]),
                                  (piece_bitboards[rook + !for_side] | piece_bitboards[queen + !for_side])};
     U64 friendly_sliding_pieces[2] = {(piece_bitboards[bishop + for_side] | piece_bitboards[queen + for_side]),
-                                 (piece_bitboards[rook + for_side] | piece_bitboards[queen + for_side])};
+                                      (piece_bitboards[rook + for_side] | piece_bitboards[queen + for_side])};
     U64 king_danger_bitboard = get_king_danger_squares(occupancy_bitboards, piece_bitboards, for_side);
     U64 king_attackers = get_king_attackers(occupancy_bitboards, piece_bitboards, for_side);
     U64 empty = ~occupancy_bitboards[all];
@@ -860,8 +862,8 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
     // calculate pinned pieces
     U64 pinned_pieces = get_pinned_pieces(source_square, for_side, opp_sliding_pieces, occupancy_bitboards);
     U64 non_pinned_pieces = occupancy_bitboards[for_side] & ~pinned_pieces;
-    std::vector<int> moves = get_pinned_moves(king_square, for_side, opp_sliding_pieces, piece_bitboards, occupancy_bitboards,
-                                              pinned_pieces, ep_bb);
+    std::vector<int> moves = get_pinned_moves(king_square, for_side, opp_sliding_pieces, piece_bitboards,
+                                              occupancy_bitboards, pinned_pieces, ep_bb);
     legal_moves.insert(legal_moves.end(), moves.begin(), moves.end());
     // moves for the rest of the pieces (non-king, non-pinned, while king not in check)
     // pawn pushes
@@ -964,14 +966,15 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
                 }
 
                 if (target_bb & (rank_1 | rank_8)) {
-                    for (int promote_type = 2 + for_side; promote_type < 10; promote_type+=2) {
+                    for (int promote_type = 2 + for_side; promote_type < 10; promote_type += 2) {
                         move = encode_move(source_square, target_square, (pawn + for_side), promote_type, capture, 0, 0,
                                            0, captured_piece);
                         legal_moves.push_back(move);
                     }
                 }// if not promotion
                 else {
-                    move = encode_move(source_square, target_square, (pawn + for_side), 0, capture, 0, 0, 0, captured_piece);
+                    move = encode_move(source_square, target_square, (pawn + for_side), 0, capture, 0, 0, 0,
+                                       captured_piece);
                     legal_moves.push_back(move);
                 }
             }
@@ -1061,7 +1064,6 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
         // use attack table lookup, & with friendly pieces to disallow self-capture
         U64 attacks = get_rook_attacks(source_square, occupancy_bitboards[all]) & ~occupancy_bitboards[for_side] &
                       (push_mask | capture_mask);
-
         // loop through attacked squares
         while (attacks) {
             // get target square
@@ -1071,6 +1073,7 @@ generate_legal_moves(U64 occupancy_bitboards[3], U64 piece_bitboards[12], int fo
             // get capture
             capture = get_bit(occupancy_bitboards[!for_side], target_square) ? 1 : 0;
             captured_piece = -1;
+
             if (capture) {
                 for (int piece_type = !for_side; piece_type < 10; piece_type += 2) {
                     if (get_bit(piece_bitboards[piece_type], target_square)) {

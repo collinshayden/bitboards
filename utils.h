@@ -98,7 +98,7 @@ const U64 rank_8 = 0x00000000000000ff;
     0000 0010 0000 0000 0000 0000 0000    double push flag    0x200000
     0000 0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
     0000 1000 0000 0000 0000 0000 0000    castling flag       0x800000
-    1111 0000 0000 0000 0000 0000 0000    captured piece      0xF00000
+    1111 0000 0000 0000 0000 0000 0000    captured piece      0xF000000
 
 */
 
@@ -111,8 +111,8 @@ const U64 rank_8 = 0x00000000000000ff;
  (capture << 20) |       \
  (double_push << 21) |   \
  (enpassant << 22) |     \
- (castling << 23)) |     \
- (captured_piece << 27)  \
+ (castling << 23) |     \
+ (captured_piece << 28))  \
 // extract source square
 #define get_move_source(move) (move & 0x3f)
 
@@ -138,7 +138,7 @@ const U64 rank_8 = 0x00000000000000ff;
 #define get_move_castling(move) ((move & 0x800000) >> 23)
 
 // extract captured piece
-#define get_move_captured_piece(move) ((move & 0xF00000) >> 27)
+#define get_move_captured_piece(move) ((move & 0xF0000000) >> 28)
 
 void print_bitboard(U64 bitboard);
 
