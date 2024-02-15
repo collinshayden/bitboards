@@ -22,7 +22,7 @@ public:
     // occupancies, white, black, both
     U64 occupancy_bitboards[3] = {0xffff000000000000, 0x000000000000ffff, 0xffff00000000ffff,};
 
-    int side_to_move = 0; // 0 white, 1 black
+    bool side_to_move = 0; // 0 white, 1 black
 
     int enpassant_sq = no_sq; // square where en passant is possible
 

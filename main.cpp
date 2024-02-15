@@ -74,39 +74,87 @@ int tests() {
     return 0;
 }
 
-U64 perft(int depth, int &nodes, Board &board) {
+U64 perft(int depth, Board &board, int &captures, int &ep, int &castles, int &promotions, int &num) {
     if (depth == 0) {
         return 1ULL;
     }
+    U64 nodes = 0;
 
     std::vector<int> legal_moves = board.get_legal_moves();
-    nodes += legal_moves.size();
-    for (int move : legal_moves) {
+    for (int move: legal_moves) {
+        if (get_move_capture(move)) {
+            captures++;
+            board.print_board();
+            printf("%d. dep=%d %s to %s\n", num, depth, square_to_cord[get_move_source(move)], square_to_cord[get_move_target(move)]);
+            num++;
+        }
+        if (get_move_enpassant(move)) ep++;
+        if (get_move_castling(move)) castles++;
+        if (get_move_promoted(move)) {
+            promotions++;
 
+        }
+        board.makeMove(move);
+        nodes += perft(depth - 1, board, captures, ep, castles, promotions, num);
+        board.undoMove(move);
+    }
+    return nodes;
+}
+
+void run_perft(int max_depth, std::string fen, Board &board) {
+    board.load_FEN(fen);
+    for (int depth = 1; depth <= max_depth; depth++) {
+//        board.load_FEN(fen);
+        int captures = 0 , ep = 0, castles = 0, promotions = 0, num = 1;
+        U64 nodes = perft(depth, board, captures, ep, castles, promotions, num);
+        printf("nodes at depth %d = %llu, captures = %d, ep = %d, castles = %d, promotions = %d\n", depth, nodes, captures, ep, castles, promotions);
     }
 }
 
 int main() {
-    tests();
+//    tests();
     fill_attack_tables();
     Board board;
 
-    board.load_FEN("r1bqkb1r/2pp1ppp/p1n2n2/1p2p3/4P3/1B3N2/PPPP1PPP/RNBQK2R w KQkq - 0 1");
+//    board.load_FEN("rnbqkbnr/1ppppppp/p7/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1");
+//    board.load_FEN("1k6/8/8/4Pp2/8/8/1K6/8 w - f6 0 1");
+//
+//
+//    std::vector<int> moves = board.get_legal_moves();
+//    board.print_legal_moves(moves);
+//    int move = moves.at(14);
+//    board.print_board();
+//    board.makeMove(move);
+//    board.print_board();
+//
+//    moves = board.get_legal_moves();
+//    board.print_legal_moves(moves);
+//
+//    move = moves.at(3);
+//    board.print_board();
+//    board.makeMove(move);
+//    board.print_board();
+//
+//    moves = board.get_legal_moves();
+//    board.print_legal_moves(moves);
+//
+//    move = moves.at(7);
+//    board.print_board();
+//    board.makeMove(move);
+//    board.print_board();
+//
+//    moves = board.get_legal_moves();
+//    board.print_legal_moves(moves);
 
-
-
-    while (true) {
-        std::vector<int> moves = board.get_legal_moves();
-        board.print_legal_moves(moves);
-        printf("# legal moves: %zu\n", moves.size());
-        board.print_board();
-
-        printf("Select a legal move: ");
-        int num;
-        std::cin >> num;
-
-        board.makeMove(moves.at(num-1));
-    }
-
+//    printf("%d\n", get_move_promoted(move));
+//
+//
+//
+//    board.undoMove(move);
+//    board.print_board();
+//
+    run_perft(4, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", board);
+    // positions 991 and 17 seem to be identical
+    // position 1280, 1292 seems illegal (bishop on c8 capturing h3 ignoring pawn on g4)
     return 0;
 }

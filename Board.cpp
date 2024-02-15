@@ -53,10 +53,13 @@ void Board::makeMove(int move) {
 
     // if captured, remove it from the respective bitboard
     if (capture) {
+//        print_board();
         int captured_piece = get_move_captured_piece(move);
         // if the move is an en passant capture, remove the captured piece from correct square
         if (en_passant) {
-            int ep_sq = side_to_move ? target_square + 8 : target_square - 8;
+            int ep_sq = side_to_move ? target_square - 8 : target_square + 8;
+//            printf("%s\n", square_to_cord[ep_sq]);
+//            print_board();
             pop_bit(piece_bitboards[!side_to_move], ep_sq);
         }
             // if not en passant, remove piece from expected target square
@@ -85,7 +88,7 @@ void Board::makeMove(int move) {
     }
         // if the move is a double push, set en passant square
     else if (double_push) {
-        int ep_sq = side_to_move ? source_square + 8 : source_square - 8;
+        int ep_sq = side_to_move ? source_square - 8 : source_square + 8;
         enpassant_sq = ep_sq;
     } else {
         // if not double push, set enpassant_sq to no_sq
@@ -159,7 +162,7 @@ void Board::undoMove(int move) {
         int captured_piece = get_move_captured_piece(move);
         // undo en passant
         if (en_passant) {
-            int ep_sq = side_to_move ? target_square + 8 : target_square - 8;
+            int ep_sq = side_to_move ? target_square - 8 : target_square + 8;
             set_bit(piece_bitboards[!side_to_move], ep_sq);
         }
             // if not en passant, put piece back on expected target square
@@ -207,6 +210,7 @@ void Board::undoMove(int move) {
     }
 
     // restore irreversible aspects of position from history stacks
+    int temp = half_move_history.size();
     enpassant_sq = en_passant_history.top();
     en_passant_history.pop();
 
@@ -229,7 +233,7 @@ std::vector<int> Board::get_legal_moves() {
 /// print legal moves
 /// \param legal_moves
 void Board::print_legal_moves(const std::vector<int> &legal_moves) {
-    int num = 1;
+    int num = 0;
     for (int move: legal_moves) {
         if (get_move_promoted(move)) {
             printf("%d. %s%s=%d capture: %d\n", num, square_to_cord[get_move_source(move)],
